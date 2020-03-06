@@ -3191,6 +3191,12 @@ bool IsWitnessEnabled(const CBlockIndex* pindexPrev, const Consensus::Params& pa
     return (VersionBitsState(pindexPrev, params, Consensus::DEPLOYMENT_SEGWIT, versionbitscache) == ThresholdState::ACTIVE);
 }
 
+bool IsAlertsEnabled(const CBlockIndex *pindexPrev, const Consensus::Params &params)
+{
+    LOCK(cs_main);
+    return (VersionBitsState(pindexPrev, params, Consensus::DEPLOYMENT_ALERTS, versionbitscache) == ThresholdState::ACTIVE);
+}
+
 bool IsNullDummyEnabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 {
     LOCK(cs_main);
@@ -3224,11 +3230,11 @@ void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPr
     }
 }
 
-CScript GenerateCoinbaseScriptSig(const int nHeight, const uint256 hashAlertMerkleRoot, const Consensus::Params& consensusParams)
+CScript GenerateCoinbaseScriptSig(const CBlockIndex* pindexPrev, uint256 hashAlertMerkleRoot, const Consensus::Params& consensusParams)
 {
-    CScript scriptSig = CScript() << nHeight;
+    CScript scriptSig = CScript() << (pindexPrev->nHeight + 1); // Height first in coinbase required for block.version=2
 
-    if (nHeight >= consensusParams.AlertsHeight) { // TODO-fork use versionbits
+    if (IsAlertsEnabled(pindexPrev, consensusParams)) {
         std::vector<unsigned char> hashAlertMerkleRootBytes = ToByteVector(hashAlertMerkleRoot);
         hashAlertMerkleRootBytes.pop_back();
         scriptSig << hashAlertMerkleRootBytes;

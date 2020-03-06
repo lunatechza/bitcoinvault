@@ -411,6 +411,9 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
 /** Check whether witness commitments are required for block. */
 bool IsWitnessEnabled(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 
+/** Check whether Alerts are required for block. */
+bool IsAlertsEnabled(const CBlockIndex* pindexPrev, const Consensus::Params& params);
+
 /** Check whether NULLDUMMY (BIP 147) has activated. */
 bool IsNullDummyEnabled(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 
@@ -421,7 +424,7 @@ bool RewindBlockIndex(const CChainParams& params);
 void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams);
 
 /** Generate the necessary coinbase scriptSig depending on block height. */
-CScript GenerateCoinbaseScriptSig(int nHeight, uint256 hashAlertMerkleRoot, const Consensus::Params& consensusParams);
+CScript GenerateCoinbaseScriptSig(const CBlockIndex* pindexPrev, uint256 hashAlertMerkleRoot, const Consensus::Params& consensusParams);
 
 /** Produce the necessary coinbase commitment for a block (modifies the hash, don't call for mined blocks). */
 std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams);

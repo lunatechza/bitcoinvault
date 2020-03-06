@@ -156,7 +156,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-    coinbaseTx.vin[0].scriptSig = GenerateCoinbaseScriptSig(nHeight, pblock->hashAlertMerkleRoot, chainparams.GetConsensus());
+    coinbaseTx.vin[0].scriptSig = GenerateCoinbaseScriptSig(pindexPrev, pblock->hashAlertMerkleRoot, chainparams.GetConsensus());
     coinbaseTx.vin[0].scriptSig << OP_0;
     assert(coinbaseTx.vin[0].scriptSig.size() >= 2);
     assert(coinbaseTx.vin[0].scriptSig.size() <= 100);
@@ -444,10 +444,9 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
         hashPrevBlock = pblock->hashPrevBlock;
     }
     ++nExtraNonce;
-    unsigned int nHeight = pindexPrev->nHeight+1; // Height first in coinbase required for block.version=2
     CMutableTransaction txCoinbase(*pblock->vtx[0]);
 
-    txCoinbase.vin[0].scriptSig = GenerateCoinbaseScriptSig(nHeight, pblock->hashAlertMerkleRoot, consensusParams);
+    txCoinbase.vin[0].scriptSig = GenerateCoinbaseScriptSig(pindexPrev, pblock->hashAlertMerkleRoot, consensusParams);
     (txCoinbase.vin[0].scriptSig << CScriptNum(nExtraNonce)) + COINBASE_FLAGS;
     assert(txCoinbase.vin[0].scriptSig.size() >= 2);
     assert(txCoinbase.vin[0].scriptSig.size() <= 100);
