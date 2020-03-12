@@ -233,7 +233,7 @@ CAmount CCoinsViewCache::GetValueIn(const CBaseTransaction& tx) const
     return nResult;
 }
 
-bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
+bool CCoinsViewCache::HaveInputs(const CBaseTransaction& tx) const
 {
     if (!tx.IsCoinBase()) {
         for (unsigned int i = 0; i < tx.vin.size(); i++) {

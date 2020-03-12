@@ -178,7 +178,7 @@ public:
         LOCK(cs_main);
         return GuessVerificationProgress(Params().TxData(), LookupBlockIndex(block_hash));
     }
-    void requestMempoolTransactions(std::function<void(const CTransactionRef&)> fn) override
+    void requestMempoolTransactions(std::function<void(const CAlertTransactionRef&)> fn) override
     {
         LOCK2(::cs_main, ::mempool.cs);
         for (const CTxMemPoolEntry& entry : ::mempool.mapTx) {

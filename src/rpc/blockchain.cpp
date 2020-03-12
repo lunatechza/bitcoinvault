@@ -442,7 +442,7 @@ static void entryToJSON(UniValue &info, const CTxMemPoolEntry &e) EXCLUSIVE_LOCK
     info.pushKV("ancestorsize", e.GetSizeWithAncestors());
     info.pushKV("ancestorfees", e.GetModFeesWithAncestors());
     info.pushKV("wtxid", mempool.vTxHashes[e.vTxHashesIdx].first.ToString());
-    const CTransaction& tx = e.GetTx();
+    const CAlertTransaction& tx = e.GetTx();
     std::set<std::string> setDepends;
     for (const CTxIn& txin : tx.vin)
     {

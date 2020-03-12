@@ -66,7 +66,7 @@ class CTxMemPool;
 class CTxMemPoolEntry
 {
 private:
-    const CTransactionRef tx;
+    const CAlertTransactionRef tx;
     const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
     const size_t nTxWeight;         //!< ... and avoid recomputing tx weight (also used for GetTxSize())
     const size_t nUsageSize;        //!< ... and total memory usage
@@ -91,13 +91,13 @@ private:
     int64_t nSigOpCostWithAncestors;
 
 public:
-    CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
+    CTxMemPoolEntry(const CAlertTransactionRef& _tx, const CAmount& _nFee,
                     int64_t _nTime, unsigned int _entryHeight,
                     bool spendsCoinbase,
                     int64_t nSigOpsCost, LockPoints lp);
 
-    const CTransaction& GetTx() const { return *this->tx; }
-    CTransactionRef GetSharedTx() const { return this->tx; }
+    const CAlertTransaction& GetTx() const { return *this->tx; }
+    CAlertTransactionRef GetSharedTx() const { return this->tx; }
     const CAmount& GetFee() const { return nFee; }
     size_t GetTxSize() const;
     size_t GetTxWeight() const { return nTxWeight; }
@@ -184,7 +184,7 @@ private:
     const LockPoints& lp;
 };
 
-// extracts a transaction hash from CTxMempoolEntry or CTransactionRef
+// extracts a transaction hash from CTxMempoolEntry or CBaseTransactionRef
 struct mempoolentry_txid
 {
     typedef uint256 result_type;
@@ -193,7 +193,7 @@ struct mempoolentry_txid
         return entry.GetTx().GetHash();
     }
 
-    result_type operator() (const CTransactionRef& tx) const
+    result_type operator() (const CBaseTransactionRef& tx) const
     {
         return tx->GetHash();
     }
@@ -328,7 +328,7 @@ class CBlockPolicyEstimator;
 struct TxMempoolInfo
 {
     /** The transaction itself */
-    CTransactionRef tx;
+    CAlertTransactionRef tx;
 
     /** Time the transaction entered the mempool. */
     int64_t nTime;
@@ -554,7 +554,7 @@ private:
     std::vector<indexed_transaction_set::const_iterator> GetSortedDepthAndScore() const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
-    indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
+    indirectmap<COutPoint, const CAlertTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<uint256, CAmount> mapDeltas;
 
     /** Create a new CTxMemPool.
@@ -580,10 +580,10 @@ public:
     void addUnchecked(const CTxMemPoolEntry& entry, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void addUnchecked(const CTxMemPoolEntry& entry, setEntries& setAncestors, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
 
-    void removeRecursive(const CTransaction &tx, MemPoolRemovalReason reason = MemPoolRemovalReason::UNKNOWN);
+    void removeRecursive(const CBaseTransaction &tx, MemPoolRemovalReason reason = MemPoolRemovalReason::UNKNOWN);
     void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-    void removeConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight);
+    void removeConflicts(const CBaseTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeForBlock(const std::vector<CBaseTransactionRef>& vtx, unsigned int nBlockHeight);
 
     void clear();
     void _clear() EXCLUSIVE_LOCKS_REQUIRED(cs); //lock free
@@ -596,7 +596,7 @@ public:
      * Check that none of this transactions inputs are in the mempool, and thus
      * the tx is not dependent on other mempool transactions to be included in a block.
      */
-    bool HasNoInputsOf(const CTransaction& tx) const;
+    bool HasNoInputsOf(const CBaseTransaction& tx) const;
 
     /** Affect CreateNewBlock prioritisation of transactions */
     void PrioritiseTransaction(const uint256& hash, const CAmount& nFeeDelta);
@@ -604,7 +604,7 @@ public:
     void ClearPrioritisation(const uint256 hash);
 
     /** Get the transaction in the pool that spends the same prevout */
-    const CTransaction* GetConflictTx(const COutPoint& prevout) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    const CAlertTransaction* GetConflictTx(const COutPoint& prevout) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Returns an iterator to the given hash, if found */
     boost::optional<txiter> GetIter(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -690,14 +690,14 @@ public:
         return (mapTx.count(hash) != 0);
     }
 
-    CTransactionRef get(const uint256& hash) const;
+    CAlertTransactionRef get(const uint256& hash) const;
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 
     size_t DynamicMemoryUsage() const;
 
-    boost::signals2::signal<void (CTransactionRef)> NotifyEntryAdded;
-    boost::signals2::signal<void (CTransactionRef, MemPoolRemovalReason)> NotifyEntryRemoved;
+    boost::signals2::signal<void (CAlertTransactionRef)> NotifyEntryAdded;
+    boost::signals2::signal<void (CAlertTransactionRef, MemPoolRemovalReason)> NotifyEntryRemoved;
 
 private:
     /** UpdateForDescendants is used by UpdateTransactionsFromBlock to update
@@ -781,7 +781,7 @@ struct insertion_order {};
 
 struct DisconnectedBlockTransactions {
     typedef boost::multi_index_container<
-        CTransactionRef,
+        CBaseTransactionRef,
         boost::multi_index::indexed_by<
             // sorted by txid
             boost::multi_index::hashed_unique<
@@ -812,17 +812,17 @@ struct DisconnectedBlockTransactions {
     // Estimate the overhead of queuedTx to be 6 pointers + an allocation, as
     // no exact formula for boost::multi_index_contained is implemented.
     size_t DynamicMemoryUsage() const {
-        return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
+        return memusage::MallocUsage(sizeof(CAlertTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
     }
 
-    void addTransaction(const CTransactionRef& tx)
+    void addTransaction(const CBaseTransactionRef& tx)
     {
         queuedTx.insert(tx);
         cachedInnerUsage += RecursiveDynamicUsage(tx);
     }
 
     // Remove entries based on txid_index, and update memory usage.
-    void removeForBlock(const std::vector<CTransactionRef>& vtx)
+    void removeForBlock(const std::vector<CBaseTransactionRef>& vtx)
     {
         // Short-circuit in the common case of a block being added to the tip
         if (queuedTx.empty()) {

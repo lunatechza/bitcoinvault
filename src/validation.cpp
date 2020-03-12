@@ -321,7 +321,7 @@ static void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfte
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks = nullptr);
 static FILE* OpenUndoFile(const CDiskBlockPos &pos, bool fReadOnly = false);
 
-bool CheckFinalTx(const CTransaction &tx, int flags)
+bool CheckFinalTx(const CBaseTransaction &tx, int flags)
 {
     AssertLockHeld(cs_main);
 
@@ -371,7 +371,7 @@ bool TestLockPointValidity(const LockPoints* lp)
     return true;
 }
 
-bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction& tx, int flags, LockPoints* lp, bool useExistingLockPoints)
+bool CheckSequenceLocks(const CTxMemPool& pool, const CAlertTransaction& tx, int flags, LockPoints* lp, bool useExistingLockPoints)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(pool.cs);
@@ -564,8 +564,8 @@ static bool CheckInputsFromMempoolAndCache(const CTransaction& tx, CValidationSt
     return CheckInputs(tx, state, view, true, flags, cacheSigStore, true, txdata);
 }
 
-static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool& pool, CValidationState& state, const CTransactionRef& ptx,
-                              bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
+static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool& pool, CValidationState& state, const CAlertTransactionRef& ptx,
+                              bool* pfMissingInputs, int64_t nAcceptTime, std::list<CAlertTransactionRef>* plTxnReplaced,
                               bool bypass_limits, const CAmount& nAbsurdFee, std::vector<COutPoint>& coins_to_uncache, bool test_accept) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     const CTransaction& tx = *ptx;
@@ -973,8 +973,8 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
 }
 
 /** (try to) add transaction to memory pool with a specified acceptance time **/
-static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
+static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPool& pool, CValidationState &state, const CAlertTransactionRef &tx,
+                        bool* pfMissingInputs, int64_t nAcceptTime, std::list<CAlertTransactionRef>* plTxnReplaced,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     std::vector<COutPoint> coins_to_uncache;
@@ -989,8 +989,8 @@ static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPo
     return res;
 }
 
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CAlertTransactionRef &tx,
+                        bool* pfMissingInputs, std::list<CAlertTransactionRef>* plTxnReplaced,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept)
 {
     const CChainParams& chainparams = Params();
@@ -1328,7 +1328,7 @@ void CChainState::InvalidBlockFound(CBlockIndex *pindex, const CValidationState 
     }
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
+void UpdateCoins(const CBaseTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
 {
     // mark inputs spent
     if (!tx.IsCoinBase()) {
@@ -1343,7 +1343,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
     AddCoins(inputs, tx, nHeight);
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
+void UpdateCoins(const CBaseTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 {
     CTxUndo txundo;
     UpdateCoins(tx, inputs, txundo, nHeight);
@@ -1598,7 +1598,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
-    if (blockUndo.vtxundo.size() + 1 != block.vtx.size()) {
+    if (blockUndo.vtxundo.size() + 1 != block.vtx.size()) { // TODO-fork vatx?
         error("DisconnectBlock(): block and undo data inconsistent");
         return DISCONNECT_FAILED;
     }

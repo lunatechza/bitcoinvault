@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <queue>
 #include <utility>
+#include "primitives/transaction.h"
 
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
@@ -254,7 +255,7 @@ void BlockAssembler::AddTxToBlock(const CAlertTransactionRef& atx, const int fla
 
 void BlockAssembler::AddTxToBlock(CTxMemPool::txiter iter)
 {
-    pblock->vtx.emplace_back(iter->GetSharedTx());
+    pblock->vtx.emplace_back(MakeTransactionRef(CTransaction(CMutableTransaction(iter->GetTx())))); // TODO-fork copying tx object here
     pblocktemplate->vTxFees.push_back(iter->GetFee());
     pblocktemplate->vTxSigOpsCost.push_back(iter->GetSigOpCost());
     nBlockWeight += iter->GetTxWeight();
@@ -273,7 +274,7 @@ void BlockAssembler::AddTxToBlock(CTxMemPool::txiter iter)
 
 void BlockAssembler::AddAlertTxToBlock(CTxMemPool::txiter iter)
 {
-    pblock->vatx.emplace_back(MakeAlertTransactionRef(CAlertTransaction(CMutableTransaction(*iter->GetSharedTx()))));
+    pblock->vatx.emplace_back(iter->GetSharedTx());
     nBlockWeight += iter->GetTxWeight();
     ++nBlockAlertTx;
     inBlock.insert(iter);

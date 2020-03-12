@@ -306,8 +306,8 @@ void PruneBlockFilesManual(int nManualPruneHeight);
 
 /** (try to) add transaction to memory pool
  * plTxnReplaced will be appended to with all transactions replaced from mempool **/
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CAlertTransactionRef &tx,
+                        bool* pfMissingInputs, std::list<CAlertTransactionRef>* plTxnReplaced,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /** Convert CValidationState to a human-readable message for logging */
@@ -324,7 +324,7 @@ int VersionBitsTipStateSinceHeight(const Consensus::Params& params, Consensus::D
 
 
 /** Apply the effects of this transaction on the UTXO set represented by view */
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
+void UpdateCoins(const CBaseTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Transaction validation functions */
 
@@ -335,7 +335,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckFinalTx(const CTransaction &tx, int flags = -1) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+bool CheckFinalTx(const CBaseTransaction &tx, int flags = -1) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
  * Test whether the LockPoints height and time are still valid on the current chain
@@ -353,7 +353,7 @@ bool TestLockPointValidity(const LockPoints* lp) EXCLUSIVE_LOCKS_REQUIRED(cs_mai
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction& tx, int flags, LockPoints* lp = nullptr, bool useExistingLockPoints = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+bool CheckSequenceLocks(const CTxMemPool& pool, const CAlertTransaction& tx, int flags, LockPoints* lp = nullptr, bool useExistingLockPoints = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
  * Returns the script flags which should be checked for a given block

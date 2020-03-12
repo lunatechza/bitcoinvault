@@ -4431,7 +4431,7 @@ void CWallet::postInitProcess()
     ReacceptWalletTransactions(*locked_chain);
 
     // Update wallet transactions with current mempool transactions.
-    chain().requestMempoolTransactions([this](const CTransactionRef& tx) { TransactionAddedToMempool(tx); });
+    chain().requestMempoolTransactions([this](const CAlertTransactionRef& tx) { TransactionAddedToMempool(tx); });
 }
 
 bool CWallet::BackupWallet(const std::string& strDest)

@@ -39,13 +39,13 @@ struct CConnmanTest : public CConnman {
 };
 
 // Tests these internal-to-net_processing.cpp methods:
-extern bool AddOrphanTx(const CTransactionRef& tx, NodeId peer);
+extern bool AddOrphanTx(const CAlertTransactionRef& tx, NodeId peer);
 extern void EraseOrphansFor(NodeId peer);
 extern unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans);
 extern void Misbehaving(NodeId nodeid, int howmuch, const std::string& message="");
 
 struct COrphanTx {
-    CTransactionRef tx;
+    CAlertTransactionRef tx;
     NodeId fromPeer;
     int64_t nTimeExpire;
 };

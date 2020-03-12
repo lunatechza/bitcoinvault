@@ -67,7 +67,7 @@ static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 struct COrphanTx {
     // When modifying, adapt the copy of this definition in tests/DoS_tests.
-    CTransactionRef tx;
+    CAlertTransactionRef tx;
     NodeId fromPeer;
     int64_t nTimeExpire;
     size_t list_pos;
@@ -155,7 +155,7 @@ namespace {
     std::atomic<int64_t> g_last_tip_update(0);
 
     /** Relay map */
-    typedef std::map<uint256, CTransactionRef> MapRelay;
+    typedef std::map<uint256, CBaseTransactionRef> MapRelay; // TODO-fork separate for alerts?
     MapRelay mapRelay GUARDED_BY(cs_main);
     /** Expiration-time ordered list of (expire time, relay map entry) pairs. */
     std::deque<std::pair<int64_t, MapRelay::iterator>> vRelayExpiration GUARDED_BY(cs_main);
@@ -176,6 +176,7 @@ namespace {
 
     static size_t vExtraTxnForCompactIt GUARDED_BY(g_cs_orphans) = 0;
     static std::vector<std::pair<uint256, CTransactionRef>> vExtraTxnForCompact GUARDED_BY(g_cs_orphans);
+    static std::vector<std::pair<uint256, CAlertTransactionRef>> vExtraAtxnForCompact GUARDED_BY(g_cs_orphans); // TODO-fork use this!
 } // namespace
 
 namespace {
@@ -690,7 +691,7 @@ static void AddToCompactExtraTransactions(const CTransactionRef& tx) EXCLUSIVE_L
     vExtraTxnForCompactIt = (vExtraTxnForCompactIt + 1) % max_extra_txn;
 }
 
-bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
+bool AddOrphanTx(const CAlertTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans) // TODO-fork copy for atx?
 {
     const uint256& hash = tx->GetHash();
     if (mapOrphanTransactions.count(hash))
@@ -886,7 +887,22 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
             auto itByPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
             if (itByPrev == mapOrphanTransactionsByPrev.end()) continue;
             for (auto mi = itByPrev->second.begin(); mi != itByPrev->second.end(); ++mi) {
-                const CTransaction& orphanTx = *(*mi)->second.tx;
+                const CAlertTransaction& orphanTx = *(*mi)->second.tx;
+                const uint256& orphanHash = orphanTx.GetHash();
+                vOrphanErase.push_back(orphanHash);
+            }
+        }
+    }
+
+    for (const CAlertTransactionRef& ptx : pblock->vatx) {
+        const CAlertTransaction& tx = *ptx;
+
+        // Which orphan pool entries must we evict?
+        for (const auto& txin : tx.vin) {
+            auto itByPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
+            if (itByPrev == mapOrphanTransactionsByPrev.end()) continue;
+            for (auto mi = itByPrev->second.begin(); mi != itByPrev->second.end(); ++mi) {
+                const CAlertTransaction& orphanTx = *(*mi)->second.tx;
                 const uint256& orphanHash = orphanTx.GetHash();
                 vOrphanErase.push_back(orphanHash);
             }
@@ -1074,7 +1090,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     return true;
 }
 
-static void RelayTransaction(const CTransaction& tx, CConnman* connman)
+static void RelayTransaction(const CBaseTransaction& tx, CConnman* connman)
 {
     CInv inv(MSG_TX, tx.GetHash());
     connman->ForEachNode([&inv](CNode* pnode)
@@ -1583,7 +1599,7 @@ bool static ProcessHeadersMessage(CNode *pfrom, CConnman *connman, const std::ve
     return true;
 }
 
-void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_set, std::list<CTransactionRef>& removed_txn) EXCLUSIVE_LOCKS_REQUIRED(cs_main, g_cs_orphans)
+void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_set, std::list<CAlertTransactionRef>& removed_txn) EXCLUSIVE_LOCKS_REQUIRED(cs_main, g_cs_orphans)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(g_cs_orphans);
@@ -1596,8 +1612,8 @@ void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_se
         auto orphan_it = mapOrphanTransactions.find(orphanHash);
         if (orphan_it == mapOrphanTransactions.end()) continue;
 
-        const CTransactionRef porphanTx = orphan_it->second.tx;
-        const CTransaction& orphanTx = *porphanTx;
+        const CAlertTransactionRef porphanTx = orphan_it->second.tx;
+        const CAlertTransaction& orphanTx = *porphanTx;
         NodeId fromPeer = orphan_it->second.fromPeer;
         bool fMissingInputs2 = false;
         // Use a dummy CValidationState so someone can't setup nodes to counter-DoS based on orphan
@@ -2263,7 +2279,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
-    if (strCommand == NetMsgType::TX) {
+    if (strCommand == NetMsgType::TX) { // TODO-fork ATX msg?
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
         if (!fRelayTxes && (!pfrom->fWhitelisted || !gArgs.GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)))
@@ -2287,7 +2303,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
 
-        std::list<CTransactionRef> lRemovedTxn;
+        std::list<CAlertTransactionRef> lRemovedTxn;
 
         if (!AlreadyHave(inv) &&
             AcceptToMemoryPool(mempool, state, ptx, &fMissingInputs, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
@@ -2524,12 +2540,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
 
                 PartiallyDownloadedBlock& partialBlock = *(*queuedBlockIt)->partialBlock;
-                ReadStatus status = partialBlock.InitData(cmpctblock, vExtraTxnForCompact);
-                if (status == READ_STATUS_INVALID) {
+                ReadStatus status1 = partialBlock.InitDataTx(cmpctblock, vExtraTxnForCompact);
+                ReadStatus status2 = partialBlock.InitDataAtx(cmpctblock, vExtraAtxnForCompact);
+                if (status1 == READ_STATUS_INVALID || status2 == READ_STATUS_INVALID) {
                     MarkBlockAsReceived(pindex->GetBlockHash()); // Reset in-flight state in case of whitelist
                     Misbehaving(pfrom->GetId(), 100, strprintf("Peer %d sent us invalid compact block\n", pfrom->GetId()));
                     return true;
-                } else if (status == READ_STATUS_FAILED) {
+                } else if (status1 == READ_STATUS_FAILED || status2 == READ_STATUS_FAILED) {
                     // Duplicate txindexes, the block is now in-flight, so just request it
                     std::vector<CInv> vInv(1);
                     vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetHash());
@@ -2559,13 +2576,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // Optimistically try to reconstruct anyway since we might be
                 // able to without any round trips.
                 PartiallyDownloadedBlock tempBlock(&mempool);
-                ReadStatus status = tempBlock.InitData(cmpctblock, vExtraTxnForCompact);
-                if (status != READ_STATUS_OK) {
+                ReadStatus status1 = tempBlock.InitDataTx(cmpctblock, vExtraTxnForCompact);
+                ReadStatus status2 = tempBlock.InitDataAtx(cmpctblock, vExtraAtxnForCompact);
+                if (status1 != READ_STATUS_OK || status2 != READ_STATUS_OK) {
                     // TODO: don't ignore failures
                     return true;
                 }
                 std::vector<CTransactionRef> dummy;
-                status = tempBlock.FillBlock(*pblock, dummy);
+                ReadStatus status = tempBlock.FillBlockTx(*pblock, dummy); // TODO-fork FillBlockAtx call here?
                 if (status == READ_STATUS_OK) {
                     fBlockReconstructed = true;
                 }
@@ -2651,7 +2669,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             PartiallyDownloadedBlock& partialBlock = *it->second.second->partialBlock;
-            ReadStatus status = partialBlock.FillBlock(*pblock, resp.txn);
+            ReadStatus status = partialBlock.FillBlockTx(*pblock, resp.txn); // TODO-fork same for atx but withing separate msg probably
             if (status == READ_STATUS_INVALID) {
                 MarkBlockAsReceived(resp.blockhash); // Reset in-flight state in case of whitelist
                 Misbehaving(pfrom->GetId(), 100, strprintf("Peer %d sent us invalid compact block/non-matching block transactions\n", pfrom->GetId()));

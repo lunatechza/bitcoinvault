@@ -17,12 +17,12 @@ enum class RBFTransactionState {
 
 // Check whether the sequence numbers on this transaction are signaling
 // opt-in to replace-by-fee, according to BIP 125
-bool SignalsOptInRBF(const CTransaction &tx);
+bool SignalsOptInRBF(const CBaseTransaction &tx);
 
 // Determine whether an in-mempool transaction is signaling opt-in to RBF
 // according to BIP 125
 // This involves checking sequence numbers of the transaction, as well
 // as the sequence numbers of all in-mempool ancestors.
-RBFTransactionState IsRBFOptIn(const CTransaction &tx, CTxMemPool &pool) EXCLUSIVE_LOCKS_REQUIRED(pool.cs);
+RBFTransactionState IsRBFOptIn(const CAlertTransaction &tx, CTxMemPool &pool) EXCLUSIVE_LOCKS_REQUIRED(pool.cs);
 
 #endif // BITCOIN_POLICY_RBF_H

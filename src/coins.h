@@ -291,7 +291,7 @@ public:
     CAmount GetValueIn(const CBaseTransaction& tx) const;
 
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
-    bool HaveInputs(const CTransaction& tx) const;
+    bool HaveInputs(const CBaseTransaction& tx) const;
 
 private:
     CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;

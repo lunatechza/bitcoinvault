@@ -27,7 +27,7 @@ bool IsFinalTx(const CBaseTransaction &tx, int nBlockHeight, int64_t nBlockTime)
     return true;
 }
 
-std::pair<int, int64_t> CalculateSequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeights, const CBlockIndex& block)
+std::pair<int, int64_t> CalculateSequenceLocks(const CBaseTransaction &tx, int flags, std::vector<int>* prevHeights, const CBlockIndex& block)
 {
     assert(prevHeights->size() == tx.vin.size());
 
@@ -99,7 +99,7 @@ bool EvaluateSequenceLocks(const CBlockIndex& block, std::pair<int, int64_t> loc
     return true;
 }
 
-bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeights, const CBlockIndex& block)
+bool SequenceLocks(const CBaseTransaction &tx, int flags, std::vector<int>* prevHeights, const CBlockIndex& block)
 {
     return EvaluateSequenceLocks(block, CalculateSequenceLocks(tx, flags, prevHeights, block));
 }
@@ -156,7 +156,7 @@ int64_t GetTransactionSigOpCost(const CBaseTransaction& tx, const CCoinsViewCach
     return nSigOps;
 }
 
-bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
+bool CheckTransaction(const CBaseTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
@@ -207,7 +207,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     return true;
 }
 
-bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
+bool Consensus::CheckTxInputs(const CBaseTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
 {
     // are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {

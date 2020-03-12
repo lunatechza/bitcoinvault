@@ -17,8 +17,10 @@ class CScheduler;
 class uint256;
 struct CBlockLocator;
 class CTransaction;
+class CAlertTransaction;
 
 using CTransactionRef = std::shared_ptr<const CTransaction>;
+using CAlertTransactionRef = std::shared_ptr<const CAlertTransaction>;
 
 namespace interfaces {
 
@@ -139,7 +141,7 @@ public:
     //! synchronous notifications from requestMempoolTransactions. Clients need
     //! to be prepared to handle this by ignoring notifications about unknown
     //! removed transactions and already added new transactions.
-    virtual void requestMempoolTransactions(std::function<void(const CTransactionRef&)> fn) = 0;
+    virtual void requestMempoolTransactions(std::function<void(const CAlertTransactionRef&)> fn) = 0;
 };
 
 //! Interface to let node manage chain clients (wallets, or maybe tools for
