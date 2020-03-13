@@ -67,7 +67,7 @@ static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 struct COrphanTx {
     // When modifying, adapt the copy of this definition in tests/DoS_tests.
-    CAlertTransactionRef tx;
+    CBaseTransactionRef tx;
     NodeId fromPeer;
     int64_t nTimeExpire;
     size_t list_pos;
@@ -680,7 +680,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
 // mapOrphanTransactions
 //
 
-static void AddToCompactExtraTransactions(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
+static void AddToCompactExtraTransactions(const CAlertTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)  // TODO-fork copy for atx?
 {
     size_t max_extra_txn = gArgs.GetArg("-blockreconstructionextratxn", DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0)
@@ -691,7 +691,7 @@ static void AddToCompactExtraTransactions(const CTransactionRef& tx) EXCLUSIVE_L
     vExtraTxnForCompactIt = (vExtraTxnForCompactIt + 1) % max_extra_txn;
 }
 
-bool AddOrphanTx(const CAlertTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans) // TODO-fork copy for atx?
+bool AddOrphanTx(const CAlertTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
 {
     const uint256& hash = tx->GetHash();
     if (mapOrphanTransactions.count(hash))
@@ -887,7 +887,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
             auto itByPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
             if (itByPrev == mapOrphanTransactionsByPrev.end()) continue;
             for (auto mi = itByPrev->second.begin(); mi != itByPrev->second.end(); ++mi) {
-                const CAlertTransaction& orphanTx = *(*mi)->second.tx;
+                const CBaseTransaction& orphanTx = *(*mi)->second.tx;
                 const uint256& orphanHash = orphanTx.GetHash();
                 vOrphanErase.push_back(orphanHash);
             }
@@ -1362,7 +1362,7 @@ static uint32_t GetFetchFlags(CNode* pfrom) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     return nFetchFlags;
 }
 
-inline void static SendBlockTransactions(const CBlock& block, const BlockTransactionsRequest& req, CNode* pfrom, CConnman* connman) {
+inline void static SendBlockTransactions(const CBlock& block, const BlockTransactionsRequest& req, CNode* pfrom, CConnman* connman) { // TODO-fork same for atx
     BlockTransactions resp(req);
     for (size_t i = 0; i < req.indexes.size(); i++) {
         if (req.indexes[i] >= block.vtx.size()) {
@@ -2288,9 +2288,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             return true;
         }
 
-        CTransactionRef ptx;
+        CAlertTransactionRef ptx;
         vRecv >> ptx;
-        const CTransaction& tx = *ptx;
+        const CAlertTransaction& tx = *ptx;
 
         CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
@@ -2391,7 +2391,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
         }
 
-        for (const CTransactionRef& removedTx : lRemovedTxn)
+        for (const CAlertTransactionRef& removedTx : lRemovedTxn)
             AddToCompactExtraTransactions(removedTx);
 
         // If a tx has been detected by recentRejects, we will have reached
@@ -3035,10 +3035,10 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
         ProcessGetData(pfrom, chainparams, connman, interruptMsgProc);
 
     if (!pfrom->orphan_work_set.empty()) {
-        std::list<CTransactionRef> removed_txn;
+        std::list<CAlertTransactionRef> removed_txn;
         LOCK2(cs_main, g_cs_orphans);
         ProcessOrphanTx(connman, pfrom->orphan_work_set, removed_txn);
-        for (const CTransactionRef& removedTx : removed_txn) {
+        for (const CAlertTransactionRef& removedTx : removed_txn) {
             AddToCompactExtraTransactions(removedTx);
         }
     }
