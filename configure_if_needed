@@ -7,7 +7,7 @@ cd "${SCRIPT_DIR}" || exit 1
 if [ ! -f Makefile ]; then
     echo "Makefile does not exist, generating..."
     ./autogen.sh && \
-    ./configure --disable-hardening --enable-debug --without-gui && \
+    ./configure --disable-hardening --enable-debug --without-gui --with-incompatible-bdb && \
     rm -f "./compile_commands.json"
 else
     echo "Makefile exists"
