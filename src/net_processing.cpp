@@ -67,13 +67,13 @@ static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 struct COrphanTx {
     // When modifying, adapt the copy of this definition in tests/DoS_tests.
-    CBaseTransactionRef tx;
+    CAlertTransactionRef tx;
     NodeId fromPeer;
     int64_t nTimeExpire;
     size_t list_pos;
-};
+}; // TODO-fork copy for atx?
 CCriticalSection g_cs_orphans;
-std::map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(g_cs_orphans);
+std::map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(g_cs_orphans);  // TODO-fork copy for atx?
 
 void EraseOrphansFor(NodeId peer);
 
@@ -175,8 +175,7 @@ namespace {
     std::vector<std::map<uint256, COrphanTx>::iterator> g_orphan_list GUARDED_BY(g_cs_orphans); //! For random eviction
 
     static size_t vExtraTxnForCompactIt GUARDED_BY(g_cs_orphans) = 0;
-    static std::vector<std::pair<uint256, CTransactionRef>> vExtraTxnForCompact GUARDED_BY(g_cs_orphans);
-    static std::vector<std::pair<uint256, CAlertTransactionRef>> vExtraAtxnForCompact GUARDED_BY(g_cs_orphans); // TODO-fork use this!
+    static std::vector<std::pair<uint256, CAlertTransactionRef>> vExtraTxnForCompact GUARDED_BY(g_cs_orphans); // TODO-fork copy for atx?
 } // namespace
 
 namespace {
@@ -680,7 +679,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
 // mapOrphanTransactions
 //
 
-static void AddToCompactExtraTransactions(const CAlertTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)  // TODO-fork copy for atx?
+static void AddToCompactExtraTransactions(const CAlertTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
 {
     size_t max_extra_txn = gArgs.GetArg("-blockreconstructionextratxn", DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0)
@@ -902,7 +901,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
             auto itByPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
             if (itByPrev == mapOrphanTransactionsByPrev.end()) continue;
             for (auto mi = itByPrev->second.begin(); mi != itByPrev->second.end(); ++mi) {
-                const CAlertTransaction& orphanTx = *(*mi)->second.tx;
+                const CBaseTransaction& orphanTx = *(*mi)->second.tx;
                 const uint256& orphanHash = orphanTx.GetHash();
                 vOrphanErase.push_back(orphanHash);
             }
