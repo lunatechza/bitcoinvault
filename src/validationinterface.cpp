@@ -32,10 +32,10 @@ struct ValidationInterfaceConnections {
 
 struct MainSignalsInstance {
     boost::signals2::signal<void (const CBlockIndex *, const CBlockIndex *, bool fInitialDownload)> UpdatedBlockTip;
-    boost::signals2::signal<void (const CTransactionRef &)> TransactionAddedToMempool;
-    boost::signals2::signal<void (const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::vector<CTransactionRef>&)> BlockConnected;
+    boost::signals2::signal<void (const CAlertTransactionRef &)> TransactionAddedToMempool;
+    boost::signals2::signal<void (const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::vector<CAlertTransactionRef>&)> BlockConnected;
     boost::signals2::signal<void (const std::shared_ptr<const CBlock> &)> BlockDisconnected;
-    boost::signals2::signal<void (const CTransactionRef &)> TransactionRemovedFromMempool;
+    boost::signals2::signal<void (const CAlertTransactionRef &)> TransactionRemovedFromMempool;
     boost::signals2::signal<void (const CBlockLocator &)> ChainStateFlushed;
     boost::signals2::signal<void (int64_t nBestBlockTime, CConnman* connman)> Broadcast;
     boost::signals2::signal<void (const CBlock&, const CValidationState&)> BlockChecked;
@@ -133,7 +133,7 @@ void SyncWithValidationInterfaceQueue() {
     promise.get_future().wait();
 }
 
-void CMainSignals::MempoolEntryRemoved(CTransactionRef ptx, MemPoolRemovalReason reason) {
+void CMainSignals::MempoolEntryRemoved(CAlertTransactionRef ptx, MemPoolRemovalReason reason) {
     if (reason != MemPoolRemovalReason::BLOCK && reason != MemPoolRemovalReason::CONFLICT) {
         m_internals->m_schedulerClient.AddToProcessQueue([ptx, this] {
             m_internals->TransactionRemovedFromMempool(ptx);
@@ -151,13 +151,13 @@ void CMainSignals::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockInd
     });
 }
 
-void CMainSignals::TransactionAddedToMempool(const CTransactionRef &ptx) {
+void CMainSignals::TransactionAddedToMempool(const CAlertTransactionRef &ptx) {
     m_internals->m_schedulerClient.AddToProcessQueue([ptx, this] {
         m_internals->TransactionAddedToMempool(ptx);
     });
 }
 
-void CMainSignals::BlockConnected(const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex, const std::shared_ptr<const std::vector<CTransactionRef>>& pvtxConflicted) {
+void CMainSignals::BlockConnected(const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex, const std::shared_ptr<const std::vector<CAlertTransactionRef>>& pvtxConflicted) {
     m_internals->m_schedulerClient.AddToProcessQueue([pblock, pindex, pvtxConflicted, this] {
         m_internals->BlockConnected(pblock, pindex, *pvtxConflicted);
     });

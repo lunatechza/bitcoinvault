@@ -873,7 +873,7 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, BanMan* banman, CS
  * Evict orphan txn pool entries (EraseOrphanTx) based on a newly connected
  * block. Also save the time of the last tip update.
  */
-void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted) {
+void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CAlertTransactionRef>& vtxConflicted) {
     LOCK(g_cs_orphans);
 
     std::vector<uint256> vOrphanErase;
@@ -2539,8 +2539,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
 
                 PartiallyDownloadedBlock& partialBlock = *(*queuedBlockIt)->partialBlock;
-                ReadStatus status1 = partialBlock.InitDataTx(cmpctblock, vExtraTxnForCompact);
-                ReadStatus status2 = partialBlock.InitDataAtx(cmpctblock, vExtraAtxnForCompact);
+                ReadStatus status1 = partialBlock.InitDataTx(cmpctblock, {});
+                ReadStatus status2 = partialBlock.InitDataAtx(cmpctblock, vExtraTxnForCompact);
                 if (status1 == READ_STATUS_INVALID || status2 == READ_STATUS_INVALID) {
                     MarkBlockAsReceived(pindex->GetBlockHash()); // Reset in-flight state in case of whitelist
                     Misbehaving(pfrom->GetId(), 100, strprintf("Peer %d sent us invalid compact block\n", pfrom->GetId()));
@@ -2575,8 +2575,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // Optimistically try to reconstruct anyway since we might be
                 // able to without any round trips.
                 PartiallyDownloadedBlock tempBlock(&mempool);
-                ReadStatus status1 = tempBlock.InitDataTx(cmpctblock, vExtraTxnForCompact);
-                ReadStatus status2 = tempBlock.InitDataAtx(cmpctblock, vExtraAtxnForCompact);
+                ReadStatus status1 = tempBlock.InitDataTx(cmpctblock, {});
+                ReadStatus status2 = tempBlock.InitDataAtx(cmpctblock, vExtraTxnForCompact);
                 if (status1 != READ_STATUS_OK || status2 != READ_STATUS_OK) {
                     // TODO: don't ignore failures
                     return true;

@@ -14,7 +14,7 @@ bool SignalsOptInRBF(const CBaseTransaction &tx)
     return false;
 }
 
-RBFTransactionState IsRBFOptIn(const CAlertTransaction &tx, CTxMemPool &pool)
+RBFTransactionState IsRBFOptIn(const CBaseTransaction &tx, CTxMemPool &pool)
 {
     AssertLockHeld(pool.cs);
 

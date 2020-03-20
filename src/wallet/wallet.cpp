@@ -1031,9 +1031,9 @@ void CWallet::LoadToWallet(const CWalletTx& wtxIn)
     }
 }
 
-bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const uint256& block_hash, int posInBlock, bool fUpdate)
+bool CWallet::AddToWalletIfInvolvingMe(const CBaseTransactionRef& ptx, const uint256& block_hash, int posInBlock, bool fUpdate)
 {
-    const CTransaction& tx = *ptx;
+    const CBaseTransaction& tx = *ptx;
     {
         AssertLockHeld(cs_wallet);
 
@@ -1096,7 +1096,7 @@ bool CWallet::TransactionCanBeAbandoned(const uint256& hashTx) const
     return wtx && !wtx->isAbandoned() && wtx->GetDepthInMainChain(*locked_chain) == 0 && !wtx->InMempool();
 }
 
-void CWallet::MarkInputsDirty(const CTransactionRef& tx)
+void CWallet::MarkInputsDirty(const CBaseTransactionRef& tx)
 {
     for (const CTxIn& txin : tx->vin) {
         auto it = mapWallet.find(txin.prevout.hash);
@@ -1213,7 +1213,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     }
 }
 
-void CWallet::SyncTransaction(const CTransactionRef& ptx, const uint256& block_hash, int posInBlock, bool update_tx) {
+void CWallet::SyncTransaction(const CBaseTransactionRef& ptx, const uint256& block_hash, int posInBlock, bool update_tx) {
     if (!AddToWalletIfInvolvingMe(ptx, block_hash, posInBlock, update_tx))
         return; // Not one of ours
 
@@ -1223,7 +1223,7 @@ void CWallet::SyncTransaction(const CTransactionRef& ptx, const uint256& block_h
     MarkInputsDirty(ptx);
 }
 
-void CWallet::TransactionAddedToMempool(const CTransactionRef& ptx) {
+void CWallet::TransactionAddedToMempool(const CAlertTransactionRef& ptx) {
     auto locked_chain = chain().lock();
     LOCK(cs_wallet);
     SyncTransaction(ptx, {} /* block hash */, 0 /* position in block */);
@@ -1234,7 +1234,7 @@ void CWallet::TransactionAddedToMempool(const CTransactionRef& ptx) {
     }
 }
 
-void CWallet::TransactionRemovedFromMempool(const CTransactionRef &ptx) {
+void CWallet::TransactionRemovedFromMempool(const CAlertTransactionRef &ptx) {
     LOCK(cs_wallet);
     auto it = mapWallet.find(ptx->GetHash());
     if (it != mapWallet.end()) {
@@ -1242,7 +1242,7 @@ void CWallet::TransactionRemovedFromMempool(const CTransactionRef &ptx) {
     }
 }
 
-void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex *pindex, const std::vector<CTransactionRef>& vtxConflicted) {
+void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex *pindex, const std::vector<CAlertTransactionRef>& vtxConflicted) {
     auto locked_chain = chain().lock();
     LOCK(cs_wallet);
     // TODO: Temporarily ensure that mempool removals are notified before
@@ -1253,13 +1253,13 @@ void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const 
     // to abandon a transaction and then have it inadvertently cleared by
     // the notification that the conflicted transaction was evicted.
 
-    for (const CTransactionRef& ptx : vtxConflicted) {
+    for (const CAlertTransactionRef& ptx : vtxConflicted) {
         SyncTransaction(ptx, {} /* block hash */, 0 /* position in block */);
         TransactionRemovedFromMempool(ptx);
     }
-    for (size_t i = 0; i < pblock->vtx.size(); i++) {
+    for (size_t i = 0; i < pblock->vatx.size(); i++) {
         SyncTransaction(pblock->vtx[i], pindex->GetBlockHash(), i);
-        TransactionRemovedFromMempool(pblock->vtx[i]);
+        TransactionRemovedFromMempool(pblock->vatx[i]);
     }
 
     m_last_block_processed = pindex->GetBlockHash();
@@ -1379,7 +1379,7 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
     return (IsChange(txout) ? txout.nValue : 0);
 }
 
-bool CWallet::IsMine(const CTransaction& tx) const
+bool CWallet::IsMine(const CBaseTransaction& tx) const
 {
     for (const CTxOut& txout : tx.vout)
         if (IsMine(txout))
@@ -1387,12 +1387,12 @@ bool CWallet::IsMine(const CTransaction& tx) const
     return false;
 }
 
-bool CWallet::IsFromMe(const CTransaction& tx) const
+bool CWallet::IsFromMe(const CBaseTransaction& tx) const
 {
     return (GetDebit(tx, ISMINE_ALL) > 0);
 }
 
-CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) const
+CAmount CWallet::GetDebit(const CBaseTransaction& tx, const isminefilter& filter) const
 {
     CAmount nDebit = 0;
     for (const CTxIn& txin : tx.vin)
@@ -1404,7 +1404,7 @@ CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) co
     return nDebit;
 }
 
-bool CWallet::IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const
+bool CWallet::IsAllFromMe(const CBaseTransaction& tx, const isminefilter& filter) const
 {
     LOCK(cs_wallet);
 
@@ -1425,7 +1425,7 @@ bool CWallet::IsAllFromMe(const CTransaction& tx, const isminefilter& filter) co
     return true;
 }
 
-CAmount CWallet::GetCredit(const CTransaction& tx, const isminefilter& filter) const
+CAmount CWallet::GetCredit(const CBaseTransaction& tx, const isminefilter& filter) const
 {
     CAmount nCredit = 0;
     for (const CTxOut& txout : tx.vout)
@@ -1437,7 +1437,7 @@ CAmount CWallet::GetCredit(const CTransaction& tx, const isminefilter& filter) c
     return nCredit;
 }
 
-CAmount CWallet::GetChange(const CTransaction& tx) const
+CAmount CWallet::GetChange(const CBaseTransaction& tx) const
 {
     CAmount nChange = 0;
     for (const CTxOut& txout : tx.vout)
@@ -1610,7 +1610,7 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOut> 
     return true;
 }
 
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, bool use_max_sig)
+int64_t CalculateMaximumSignedTxSize(const CBaseTransaction &tx, const CWallet *wallet, bool use_max_sig)
 {
     std::vector<CTxOut> txouts;
     // Look up the inputs.  We should have already checked that this transaction
@@ -1628,7 +1628,7 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wall
 }
 
 // txouts needs to be in the order of tx.vin
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig)
+int64_t CalculateMaximumSignedTxSize(const CBaseTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig)
 {
     CMutableTransaction txNew(tx);
     if (!wallet->DummySignTx(txNew, txouts, use_max_sig)) {
@@ -2457,9 +2457,9 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins(interfaces::Ch
     return result;
 }
 
-const CTxOut& CWallet::FindNonChangeParentOutput(const CTransaction& tx, int output) const
+const CTxOut& CWallet::FindNonChangeParentOutput(const CBaseTransaction& tx, int output) const
 {
-    const CTransaction* ptx = &tx;
+    const CBaseTransaction* ptx = &tx;
     int n = output;
     while (IsChange(ptx->vout[n]) && ptx->vin.size() > 0) {
         const COutPoint& prevout = ptx->vin[0].prevout;
@@ -2661,7 +2661,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     LOCK(cs_wallet);
 
     CReserveKey reservekey(this);
-    CTransactionRef tx_new;
+    CAlertTransactionRef tx_new;
     if (!CreateTransaction(*locked_chain, vecSend, tx_new, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, false)) {
         return false;
     }
@@ -2781,7 +2781,7 @@ OutputType CWallet::TransactionChangeType(OutputType change_type, const std::vec
     return m_default_address_type;
 }
 
-bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CReserveKey& reservekey, CAmount& nFeeRet,
+bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CAlertTransactionRef& tx, CReserveKey& reservekey, CAmount& nFeeRet,
                          int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
     CAmount nValue = 0;
@@ -3116,7 +3116,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
         }
 
         // Return the constructed transaction data.
-        tx = MakeTransactionRef(std::move(txNew));
+        tx = MakeAlertTransactionRef(std::move(txNew));
 
         // Limit size
         if (GetTransactionWeight(*tx) > MAX_STANDARD_TX_WEIGHT)
@@ -3157,7 +3157,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
 /**
  * Call after CreateTransaction unless you want to abort
  */
-bool CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, CReserveKey& reservekey, CConnman* connman, CValidationState& state)
+bool CWallet::CommitTransaction(CBaseTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, CReserveKey& reservekey, CConnman* connman, CValidationState& state)
 {
     {
         auto locked_chain = chain().lock();

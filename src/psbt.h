@@ -40,7 +40,7 @@ static constexpr uint8_t PSBT_SEPARATOR = 0x00;
 /** A structure for PSBTs which contain per-input information */
 struct PSBTInput
 {
-    CTransactionRef non_witness_utxo;
+    CBaseTransactionRef non_witness_utxo;
     CTxOut witness_utxo;
     CScript redeem_script;
     CScript witness_script;

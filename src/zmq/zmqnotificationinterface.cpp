@@ -158,11 +158,11 @@ void CZMQNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, co
     }
 }
 
-void CZMQNotificationInterface::TransactionAddedToMempool(const CTransactionRef& ptx)
+void CZMQNotificationInterface::TransactionAddedToMempool(const CAlertTransactionRef& ptx)
 {
     // Used by BlockConnected and BlockDisconnected as well, because they're
     // all the same external callback.
-    const CTransaction& tx = *ptx;
+    const CAlertTransaction& tx = *ptx;
 
     for (std::list<CZMQAbstractNotifier*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
@@ -179,9 +179,9 @@ void CZMQNotificationInterface::TransactionAddedToMempool(const CTransactionRef&
     }
 }
 
-void CZMQNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected, const std::vector<CTransactionRef>& vtxConflicted)
+void CZMQNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected, const std::vector<CAlertTransactionRef>& vtxConflicted)
 {
-    for (const CTransactionRef& ptx : pblock->vtx) {
+    for (const CAlertTransactionRef& ptx : pblock->vatx) {
         // Do a normal notify for each transaction added in the block
         TransactionAddedToMempool(ptx);
     }

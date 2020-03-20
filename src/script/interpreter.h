@@ -182,7 +182,7 @@ public:
     bool CheckSequence(const CScriptNum& nSequence) const override;
 };
 
-using TransactionSignatureChecker = GenericTransactionSignatureChecker<CTransaction>;
+using TransactionSignatureChecker = GenericTransactionSignatureChecker<CBaseTransaction>;
 using MutableTransactionSignatureChecker = GenericTransactionSignatureChecker<CMutableTransaction>;
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* error = nullptr);

@@ -84,19 +84,19 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
      * Check for standard transaction types
      * @return True if all outputs (scriptPubKeys) use only standard transaction forms
      */
-bool IsStandardTx(const CTransaction& tx, std::string& reason);
+bool IsStandardTx(const CBaseTransaction& tx, std::string& reason);
     /**
      * Check for standard transaction types
      * @param[in] mapInputs    Map of previous transactions that have outputs we're spending
      * @return True if all inputs (scriptSigs) use only standard transaction forms
      */
-bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+bool AreInputsStandard(const CBaseTransaction& tx, const CCoinsViewCache& mapInputs);
     /**
      * Check if the transaction is over standard P2WSH resources limit:
      * 3600bytes witnessScript size, 80bytes per witness stack element, 100 witness stack elements
      * These limits are adequate for multi-signature up to n-of-100 using OP_CHECKSIG, OP_ADD, and OP_EQUAL,
      */
-bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+bool IsWitnessStandard(const CBaseTransaction& tx, const CCoinsViewCache& mapInputs);
 
 extern CFeeRate incrementalRelayFee;
 extern CFeeRate dustRelayFee;
@@ -104,7 +104,7 @@ extern unsigned int nBytesPerSigOp;
 
 /** Compute the virtual transaction size (weight reinterpreted as bytes). */
 int64_t GetVirtualTransactionSize(int64_t nWeight, int64_t nSigOpCost);
-int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost = 0);
+int64_t GetVirtualTransactionSize(const CBaseTransaction& tx, int64_t nSigOpCost = 0);
 int64_t GetVirtualTransactionInputSize(const CTxIn& tx, int64_t nSigOpCost = 0);
 
 #endif // BITCOIN_POLICY_POLICY_H

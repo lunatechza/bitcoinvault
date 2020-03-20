@@ -318,7 +318,7 @@ enum class FlushStateMode {
 static bool FlushStateToDisk(const CChainParams& chainParams, CValidationState &state, FlushStateMode mode, int nManualPruneHeight=0);
 static void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight);
 static void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight);
-bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks = nullptr);
+bool CheckInputs(const CBaseTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks = nullptr);
 static FILE* OpenUndoFile(const CDiskBlockPos &pos, bool fReadOnly = false);
 
 bool CheckFinalTx(const CBaseTransaction &tx, int flags)
@@ -530,7 +530,7 @@ static void UpdateMempoolForReorg(DisconnectedBlockTransactions &disconnectpool,
 
 // Used to avoid mempool polluting consensus critical paths if CCoinsViewMempool
 // were somehow broken and returning the wrong scriptPubKeys
-static bool CheckInputsFromMempoolAndCache(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& view, const CTxMemPool& pool,
+static bool CheckInputsFromMempoolAndCache(const CAlertTransaction& tx, CValidationState& state, const CCoinsViewCache& view, const CTxMemPool& pool,
                  unsigned int flags, bool cacheSigStore, PrecomputedTransactionData& txdata) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     AssertLockHeld(cs_main);
 
@@ -549,7 +549,7 @@ static bool CheckInputsFromMempoolAndCache(const CTransaction& tx, CValidationSt
         // and then only have to check equivalence for available inputs.
         if (coin.IsSpent()) return false;
 
-        const CTransactionRef& txFrom = pool.get(txin.prevout.hash);
+        const CAlertTransactionRef& txFrom = pool.get(txin.prevout.hash);
         if (txFrom) {
             assert(txFrom->GetHash() == txin.prevout.hash);
             assert(txFrom->vout.size() > txin.prevout.n);
@@ -568,7 +568,7 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
                               bool* pfMissingInputs, int64_t nAcceptTime, std::list<CAlertTransactionRef>* plTxnReplaced,
                               bool bypass_limits, const CAmount& nAbsurdFee, std::vector<COutPoint>& coins_to_uncache, bool test_accept) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    const CTransaction& tx = *ptx;
+    const CAlertTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
     LOCK(pool.cs); // mempool "read lock" (held through GetMainSignals().TransactionAddedToMempool())
@@ -609,7 +609,7 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     std::set<uint256> setConflicts;
     for (const CTxIn &txin : tx.vin)
     {
-        const CTransaction* ptxConflicting = pool.GetConflictTx(txin.prevout);
+        const CAlertTransaction* ptxConflicting = pool.GetConflictTx(txin.prevout);
         if (ptxConflicting) {
             if (!setConflicts.count(ptxConflicting->GetHash()))
             {
@@ -1001,12 +1001,12 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CAlertT
  * Return transaction in txOut, and if it was found inside a block, its hash is placed in hashBlock.
  * If blockIndex is provided, the transaction is fetched from the corresponding block.
  */
-bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus::Params& consensusParams, uint256& hashBlock, const CBlockIndex* const block_index)
+bool GetTransaction(const uint256& hash, CBaseTransactionRef& txOut, const Consensus::Params& consensusParams, uint256& hashBlock, const CBlockIndex* const block_index)
 {
     LOCK(cs_main);
 
     if (!block_index) {
-        CTransactionRef ptx = mempool.get(hash);
+        CAlertTransactionRef ptx = mempool.get(hash);
         if (ptx) {
             txOut = ptx;
             return true;
@@ -1389,7 +1389,7 @@ void InitScriptExecutionCache() {
  *
  * Non-static (and re-declared) in src/test/txvalidationcache_tests.cpp
  */
-bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+bool CheckInputs(const CBaseTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     if (!tx.IsCoinBase())
     {
@@ -1604,7 +1604,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     }
 
     // undo transactions in reverse order
-    for (int i = block.vtx.size() - 1; i >= 0; i--) {
+    for (int i = block.vtx.size() - 1; i >= 0; i--) {  // TODO-fork change to vatx?
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
@@ -2008,7 +2008,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
-        const CTransaction &tx = *(block.vtx[i]);
+        const CTransaction &tx = *(block.vtx[i]);  // TODO-fork change to vatx?
 
         nInputs += tx.vin.size();
 
@@ -2336,7 +2336,7 @@ bool CChainState::DisconnectTip(CValidationState& state, const CChainParams& cha
 
     if (disconnectpool) {
         // Save transactions to re-add to mempool at end of reorg
-        for (auto it = block.vtx.rbegin(); it != block.vtx.rend(); ++it) {
+        for (auto it = block.vatx.rbegin(); it != block.vatx.rend(); ++it) {
             disconnectpool->addTransaction(*it);
         }
         while (disconnectpool->DynamicMemoryUsage() > MAX_DISCONNECTED_TX_POOL_SIZE * 1000) {
@@ -2365,8 +2365,8 @@ static int64_t nTimePostConnect = 0;
 struct PerBlockConnectTrace {
     CBlockIndex* pindex = nullptr;
     std::shared_ptr<const CBlock> pblock;
-    std::shared_ptr<std::vector<CTransactionRef>> conflictedTxs;
-    PerBlockConnectTrace() : conflictedTxs(std::make_shared<std::vector<CTransactionRef>>()) {}
+    std::shared_ptr<std::vector<CAlertTransactionRef>> conflictedTxs; // TODO-fork copy for atx?
+    PerBlockConnectTrace() : conflictedTxs(std::make_shared<std::vector<CAlertTransactionRef>>()) {}
 };
 /**
  * Used to track blocks whose transactions were applied to the UTXO state as a
@@ -2416,7 +2416,7 @@ public:
         return blocksConnected;
     }
 
-    void NotifyEntryRemoved(CTransactionRef txRemoved, MemPoolRemovalReason reason) {
+    void NotifyEntryRemoved(CAlertTransactionRef txRemoved, MemPoolRemovalReason reason) {
         assert(!blocksConnected.back().pindex);
         if (reason == MemPoolRemovalReason::CONFLICT) {
             blocksConnected.back().conflictedTxs->emplace_back(std::move(txRemoved));
@@ -2471,8 +2471,8 @@ bool CChainState::ConnectTip(CValidationState& state, const CChainParams& chainp
     int64_t nTime5 = GetTimeMicros(); nTimeChainState += nTime5 - nTime4;
     LogPrint(BCLog::BENCH, "  - Writing chainstate: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime5 - nTime4) * MILLI, nTimeChainState * MICRO, nTimeChainState * MILLI / nBlocksTotal);
     // Remove conflicting transactions from the mempool.;
-    mempool.removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
-    disconnectpool.removeForBlock(blockConnecting.vtx);
+    mempool.removeForBlock(blockConnecting.vatx, pindexNew->nHeight);
+    disconnectpool.removeForBlock(blockConnecting.vatx);
     // Update chainActive & related variables.
     chainActive.SetTip(pindexNew);
     UpdateTip(pindexNew, chainparams);
@@ -4850,7 +4850,7 @@ bool LoadMempool()
         uint64_t num;
         file >> num;
         while (num--) {
-            CTransactionRef tx;
+            CAlertTransactionRef tx;
             int64_t nTime;
             int64_t nFeeDelta;
             file >> tx;

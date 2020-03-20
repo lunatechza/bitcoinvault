@@ -38,7 +38,7 @@ std::string TransactionErrorString(const TransactionError err)
     assert(false);
 }
 
-TransactionError BroadcastTransaction(const CTransactionRef tx, uint256& hashTx, std::string& err_string, const CAmount& highfee)
+TransactionError BroadcastTransaction(const CAlertTransactionRef tx, uint256& hashTx, std::string& err_string, const CAmount& highfee)
 {
     std::promise<void> promise;
     hashTx = tx->GetHash();

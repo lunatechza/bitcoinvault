@@ -260,7 +260,7 @@ bool TxIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 
 BaseIndex::DB& TxIndex::GetDB() const { return *m_db; }
 
-bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRef& tx) const
+bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CBaseTransactionRef& tx) const
 {
     CDiskTxPos postx;
     if (!m_db->ReadTxPos(tx_hash, postx)) {

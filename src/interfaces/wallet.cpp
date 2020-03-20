@@ -45,7 +45,7 @@ class PendingWalletTxImpl : public PendingWalletTx
 public:
     explicit PendingWalletTxImpl(CWallet& wallet) : m_wallet(wallet), m_key(&wallet) {}
 
-    const CTransaction& get() override { return *m_tx; }
+    const CAlertTransaction& get() override { return *m_tx; }
 
     int64_t getVirtualSize() override { return GetVirtualTransactionSize(*m_tx); }
 
@@ -63,7 +63,7 @@ public:
         return true;
     }
 
-    CTransactionRef m_tx;
+    CAlertTransactionRef m_tx;
     CWallet& m_wallet;
     CReserveKey m_key;
 };
@@ -286,7 +286,7 @@ public:
         return feebumper::CommitTransaction(m_wallet.get(), txid, std::move(mtx), errors, bumped_txid) ==
                feebumper::Result::OK;
     }
-    CTransactionRef getTx(const uint256& txid) override
+    CBaseTransactionRef getTx(const uint256& txid) override
     {
         auto locked_chain = m_wallet->chain().lock();
         LOCK(m_wallet->cs_wallet);

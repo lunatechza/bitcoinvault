@@ -154,7 +154,7 @@ bool BaseIndex::WriteBestBlock(const CBlockIndex* block_index)
 }
 
 void BaseIndex::BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex,
-                               const std::vector<CTransactionRef>& txn_conflicted)
+                               const std::vector<CAlertTransactionRef>& txn_conflicted)
 {
     if (!m_synced) {
         return;

@@ -251,14 +251,14 @@ struct COutputEntry
 };
 
 /** A transaction with a merkle branch linking it to the block chain. */
-class CMerkleTx
+class CMerkleTx  // TODO-fork template for atx?
 {
 private:
   /** Constant used in hashBlock to indicate tx has been abandoned */
     static const uint256 ABANDON_HASH;
 
 public:
-    CTransactionRef tx;
+    CBaseTransactionRef tx;
     uint256 hashBlock;
 
     /* An nIndex == -1 means that hashBlock (in nonzero) refers to the earliest
@@ -274,7 +274,7 @@ public:
         Init();
     }
 
-    explicit CMerkleTx(CTransactionRef arg)
+    explicit CMerkleTx(CBaseTransactionRef arg)
     {
         SetTx(std::move(arg));
         Init();
@@ -286,7 +286,7 @@ public:
         nIndex = -1;
     }
 
-    void SetTx(CTransactionRef arg)
+    void SetTx(CBaseTransactionRef arg)
     {
         tx = std::move(arg);
     }
@@ -410,7 +410,7 @@ public:
     mutable CAmount nAvailableWatchCreditCached;
     mutable CAmount nChangeCached;
 
-    CWalletTx(const CWallet* pwalletIn, CTransactionRef arg) : CMerkleTx(std::move(arg))
+    CWalletTx(const CWallet* pwalletIn, CBaseTransactionRef arg) : CMerkleTx(std::move(arg))
     {
         Init(pwalletIn);
     }
@@ -682,19 +682,19 @@ private:
      * Abandoned state should probably be more carefully tracked via different
      * posInBlock signals or by checking mempool presence when necessary.
      */
-    bool AddToWalletIfInvolvingMe(const CTransactionRef& tx, const uint256& block_hash, int posInBlock, bool fUpdate) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool AddToWalletIfInvolvingMe(const CBaseTransactionRef& tx, const uint256& block_hash, int posInBlock, bool fUpdate) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
     void MarkConflicted(const uint256& hashBlock, const uint256& hashTx);
 
     /* Mark a transaction's inputs dirty, thus forcing the outputs to be recomputed */
-    void MarkInputsDirty(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void MarkInputsDirty(const CBaseTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Used by TransactionAddedToMemorypool/BlockConnected/Disconnected/ScanForWalletTransactions.
      * Should be called with non-zero block_hash and posInBlock if this is for a transaction that is included in a block. */
-    void SyncTransaction(const CTransactionRef& tx, const uint256& block_hash, int posInBlock = 0, bool update_tx = true) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void SyncTransaction(const CBaseTransactionRef& tx, const uint256& block_hash, int posInBlock = 0, bool update_tx = true) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
@@ -831,7 +831,7 @@ public:
     /**
      * Find non-change parent output.
      */
-    const CTxOut& FindNonChangeParentOutput(const CTransaction& tx, int output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    const CTxOut& FindNonChangeParentOutput(const CBaseTransaction& tx, int output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -921,8 +921,8 @@ public:
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose=true);
     void LoadToWallet(const CWalletTx& wtxIn) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void TransactionAddedToMempool(const CTransactionRef& tx) override;
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex *pindex, const std::vector<CTransactionRef>& vtxConflicted) override;
+    void TransactionAddedToMempool(const CAlertTransactionRef& tx) override;
+    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex *pindex, const std::vector<CAlertTransactionRef>& vtxConflicted) override;
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock) override;
     int64_t RescanFromTime(int64_t startTime, const WalletRescanReserver& reserver, bool update);
 
@@ -942,7 +942,7 @@ public:
         uint256 last_failed_block;
     };
     ScanResult ScanForWalletTransactions(const uint256& first_block, const uint256& last_block, const WalletRescanReserver& reserver, bool fUpdate);
-    void TransactionRemovedFromMempool(const CTransactionRef &ptx) override;
+    void TransactionRemovedFromMempool(const CAlertTransactionRef &ptx) override;
     void ReacceptWalletTransactions(interfaces::Chain::Lock& locked_chain) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     // ResendWalletTransactionsBefore may only be called if fBroadcastTransactions!
@@ -969,9 +969,9 @@ public:
      * selected by SelectCoins(); Also create the change output, when needed
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
-    bool CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
+    bool CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CAlertTransactionRef& tx, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl& coin_control, bool sign = true);
-    bool CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
+    bool CommitTransaction(CBaseTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
 
     bool DummySignTx(CMutableTransaction &txNew, const std::set<CTxOut> &txouts, bool use_max_sig = false) const
     {
@@ -1045,14 +1045,14 @@ public:
     bool IsChange(const CTxOut& txout) const;
     bool IsChange(const CScript& script) const;
     CAmount GetChange(const CTxOut& txout) const;
-    bool IsMine(const CTransaction& tx) const;
+    bool IsMine(const CBaseTransaction& tx) const;
     /** should probably be renamed to IsRelevantToMe */
-    bool IsFromMe(const CTransaction& tx) const;
-    CAmount GetDebit(const CTransaction& tx, const isminefilter& filter) const;
+    bool IsFromMe(const CBaseTransaction& tx) const;
+    CAmount GetDebit(const CBaseTransaction& tx, const isminefilter& filter) const;
     /** Returns whether all of the inputs match the filter */
-    bool IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount GetCredit(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount GetChange(const CTransaction& tx) const;
+    bool IsAllFromMe(const CBaseTransaction& tx, const isminefilter& filter) const;
+    CAmount GetCredit(const CBaseTransaction& tx, const isminefilter& filter) const;
+    CAmount GetChange(const CBaseTransaction& tx) const;
     void ChainStateFlushed(const CBlockLocator& loc) override;
 
     DBErrors LoadWallet(bool& fFirstRunRet);
@@ -1294,6 +1294,6 @@ public:
 // Use DummySignatureCreator, which inserts 71 byte signatures everywhere.
 // NOTE: this requires that all inputs must be in mapWallet (eg the tx should
 // be IsAllFromMe).
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, bool use_max_sig = false) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet);
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig = false);
+int64_t CalculateMaximumSignedTxSize(const CBaseTransaction &tx, const CWallet *wallet, bool use_max_sig = false) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet);
+int64_t CalculateMaximumSignedTxSize(const CBaseTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig = false);
 #endif // BITCOIN_WALLET_WALLET_H

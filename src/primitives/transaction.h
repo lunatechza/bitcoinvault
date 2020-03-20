@@ -354,6 +354,8 @@ public:
         }
         return false;
     }
+
+    virtual std::string ToString() const; // TODO-fork virtual changes sizeof?
 };
 
 class CAlertTransaction : public CBaseTransaction
@@ -361,7 +363,7 @@ class CAlertTransaction : public CBaseTransaction
     using CBaseTransaction::CBaseTransaction;
 
 public:
-    std::string ToString() const;
+    std::string ToString() const override;
 };
 
 class CTransaction : public CBaseTransaction
@@ -369,7 +371,7 @@ class CTransaction : public CBaseTransaction
     using CBaseTransaction::CBaseTransaction;
 
 public:
-    std::string ToString() const;
+    std::string ToString() const override;
 };
 
 /** A mutable version of CBaseTransaction. */

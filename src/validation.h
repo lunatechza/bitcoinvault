@@ -271,7 +271,7 @@ void ThreadScriptCheck();
 /** Check whether we are doing an initial block download (synchronizing from disk or network) */
 bool IsInitialBlockDownload();
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
-bool GetTransaction(const uint256& hash, CTransactionRef& tx, const Consensus::Params& params, uint256& hashBlock, const CBlockIndex* const blockIndex = nullptr);
+bool GetTransaction(const uint256& hash, CBaseTransactionRef& tx, const Consensus::Params& params, uint256& hashBlock, const CBlockIndex* const blockIndex = nullptr);
 /**
  * Find the best known block, and make it the tip of the block chain
  *
@@ -368,7 +368,7 @@ class CScriptCheck
 {
 private:
     CTxOut m_tx_out;
-    const CTransaction *ptxTo;
+    const CBaseTransaction *ptxTo;
     unsigned int nIn;
     unsigned int nFlags;
     bool cacheStore;
@@ -377,7 +377,7 @@ private:
 
 public:
     CScriptCheck(): ptxTo(nullptr), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
+    CScriptCheck(const CTxOut& outIn, const CBaseTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
         m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), error(SCRIPT_ERR_UNKNOWN_ERROR), txdata(txdataIn) { }
 
     bool operator()();

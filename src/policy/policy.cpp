@@ -77,7 +77,7 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
     return true;
 }
 
-bool IsStandardTx(const CTransaction& tx, std::string& reason)
+bool IsStandardTx(const CBaseTransaction& tx, std::string& reason)
 {
     if (tx.nVersion > CTransaction::MAX_STANDARD_VERSION || tx.nVersion < 1) {
         reason = "version";
@@ -157,7 +157,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
  * expensive-to-check-upon-redemption script like:
  *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
  */
-bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+bool AreInputsStandard(const CBaseTransaction& tx, const CCoinsViewCache& mapInputs)
 {
     if (tx.IsCoinBase())
         return true; // Coinbases don't use vin normally
@@ -187,7 +187,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     return true;
 }
 
-bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+bool IsWitnessStandard(const CBaseTransaction& tx, const CCoinsViewCache& mapInputs)
 {
     if (tx.IsCoinBase())
         return true; // Coinbases are skipped
@@ -248,7 +248,7 @@ int64_t GetVirtualTransactionSize(int64_t nWeight, int64_t nSigOpCost)
     return (std::max(nWeight, nSigOpCost * nBytesPerSigOp) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
 }
 
-int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost)
+int64_t GetVirtualTransactionSize(const CBaseTransaction& tx, int64_t nSigOpCost)
 {
     return GetVirtualTransactionSize(GetTransactionWeight(tx), nSigOpCost);
 }

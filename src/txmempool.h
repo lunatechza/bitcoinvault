@@ -583,7 +583,7 @@ public:
     void removeRecursive(const CBaseTransaction &tx, MemPoolRemovalReason reason = MemPoolRemovalReason::UNKNOWN);
     void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     void removeConflicts(const CBaseTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeForBlock(const std::vector<CBaseTransactionRef>& vtx, unsigned int nBlockHeight);
+    void removeForBlock(const std::vector<CAlertTransactionRef>& vtx, unsigned int nBlockHeight);
 
     void clear();
     void _clear() EXCLUSIVE_LOCKS_REQUIRED(cs); //lock free
@@ -781,7 +781,7 @@ struct insertion_order {};
 
 struct DisconnectedBlockTransactions {
     typedef boost::multi_index_container<
-        CBaseTransactionRef,
+        CAlertTransactionRef,
         boost::multi_index::indexed_by<
             // sorted by txid
             boost::multi_index::hashed_unique<
@@ -815,14 +815,14 @@ struct DisconnectedBlockTransactions {
         return memusage::MallocUsage(sizeof(CAlertTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
     }
 
-    void addTransaction(const CBaseTransactionRef& tx)
+    void addTransaction(const CAlertTransactionRef& tx)
     {
         queuedTx.insert(tx);
         cachedInnerUsage += RecursiveDynamicUsage(tx);
     }
 
     // Remove entries based on txid_index, and update memory usage.
-    void removeForBlock(const std::vector<CBaseTransactionRef>& vtx)
+    void removeForBlock(const std::vector<CAlertTransactionRef>& vtx)
     {
         // Short-circuit in the common case of a block being added to the tip
         if (queuedTx.empty()) {

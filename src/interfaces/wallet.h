@@ -167,7 +167,7 @@ public:
         uint256& bumped_txid) = 0;
 
     //! Get a transaction.
-    virtual CTransactionRef getTx(const uint256& txid) = 0;
+    virtual CBaseTransactionRef getTx(const uint256& txid) = 0;
 
     //! Get transaction information.
     virtual WalletTx getWalletTx(const uint256& txid) = 0;
@@ -290,7 +290,7 @@ public:
     virtual ~PendingWalletTx() {}
 
     //! Get transaction data.
-    virtual const CTransaction& get() = 0;
+    virtual const CAlertTransaction& get() = 0;
 
     //! Get virtual transaction size.
     virtual int64_t getVirtualSize() = 0;
@@ -338,7 +338,7 @@ struct WalletBalances
 // Wallet transaction information.
 struct WalletTx
 {
-    CTransactionRef tx;
+    CBaseTransactionRef tx;
     std::vector<isminetype> txin_is_mine;
     std::vector<isminetype> txout_is_mine;
     std::vector<CTxDestination> txout_address;

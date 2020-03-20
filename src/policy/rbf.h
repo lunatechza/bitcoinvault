@@ -23,6 +23,6 @@ bool SignalsOptInRBF(const CBaseTransaction &tx);
 // according to BIP 125
 // This involves checking sequence numbers of the transaction, as well
 // as the sequence numbers of all in-mempool ancestors.
-RBFTransactionState IsRBFOptIn(const CAlertTransaction &tx, CTxMemPool &pool) EXCLUSIVE_LOCKS_REQUIRED(pool.cs);
+RBFTransactionState IsRBFOptIn(const CBaseTransaction &tx, CTxMemPool &pool) EXCLUSIVE_LOCKS_REQUIRED(pool.cs); // TODO-fork should be alerts here?
 
 #endif // BITCOIN_POLICY_RBF_H

@@ -92,7 +92,7 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void TransactionAddedToMempool(const CTransactionRef &ptxn) {}
+    virtual void TransactionAddedToMempool(const CAlertTransactionRef &ptxn) {}
     /**
      * Notifies listeners of a transaction leaving mempool.
      *
@@ -103,14 +103,14 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void TransactionRemovedFromMempool(const CTransactionRef &ptx) {}
+    virtual void TransactionRemovedFromMempool(const CAlertTransactionRef &ptx) {}
     /**
      * Notifies listeners of a block being connected.
      * Provides a vector of transactions evicted from the mempool as a result.
      *
      * Called on a background thread.
      */
-    virtual void BlockConnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex, const std::vector<CTransactionRef> &txnConflicted) {}
+    virtual void BlockConnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex, const std::vector<CAlertTransactionRef> &txnConflicted) {}
     /**
      * Notifies listeners of a block being disconnected
      *
@@ -162,7 +162,7 @@ private:
     friend void ::UnregisterAllValidationInterfaces();
     friend void ::CallFunctionInValidationInterfaceQueue(std::function<void ()> func);
 
-    void MempoolEntryRemoved(CTransactionRef tx, MemPoolRemovalReason reason);
+    void MempoolEntryRemoved(CAlertTransactionRef tx, MemPoolRemovalReason reason);
 
 public:
     /** Register a CScheduler to give callbacks which should run in the background (may only be called once) */
@@ -180,8 +180,8 @@ public:
     void UnregisterWithMempoolSignals(CTxMemPool& pool);
 
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
-    void TransactionAddedToMempool(const CTransactionRef &);
-    void BlockConnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::shared_ptr<const std::vector<CTransactionRef>> &);
+    void TransactionAddedToMempool(const CAlertTransactionRef &);
+    void BlockConnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::shared_ptr<const std::vector<CAlertTransactionRef>> &);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &);
     void ChainStateFlushed(const CBlockLocator &);
     void Broadcast(int64_t nBestBlockTime, CConnman* connman);

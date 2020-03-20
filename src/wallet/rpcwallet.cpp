@@ -308,7 +308,7 @@ static UniValue setlabel(const JSONRPCRequest& request)
 }
 
 
-static CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue)
+static CAlertTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue)
 {
     CAmount curBalance = pwallet->GetBalance();
 
@@ -334,7 +334,7 @@ static CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet 
     int nChangePosRet = -1;
     CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
-    CTransactionRef tx;
+    CAlertTransactionRef tx;
     if (!pwallet->CreateTransaction(locked_chain, vecSend, tx, reservekey, nFeeRequired, nChangePosRet, strError, coin_control)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
@@ -437,7 +437,7 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
 
-    CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
+    CAlertTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
     return tx->GetHash().GetHex();
 }
 
@@ -944,7 +944,7 @@ static UniValue sendmany(const JSONRPCRequest& request)
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     std::string strFailReason;
-    CTransactionRef tx;
+    CAlertTransactionRef tx;
     bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, keyChange, nFeeRequired, nChangePosRet, strFailReason, coin_control);
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);

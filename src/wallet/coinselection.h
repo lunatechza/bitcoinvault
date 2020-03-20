@@ -16,7 +16,7 @@ static const CAmount MIN_FINAL_CHANGE = MIN_CHANGE/2;
 
 class CInputCoin {
 public:
-    CInputCoin(const CTransactionRef& tx, unsigned int i)
+    CInputCoin(const CBaseTransactionRef& tx, unsigned int i)
     {
         if (!tx)
             throw std::invalid_argument("tx should not be null");
@@ -28,7 +28,7 @@ public:
         effective_value = txout.nValue;
     }
 
-    CInputCoin(const CTransactionRef& tx, unsigned int i, int input_bytes) : CInputCoin(tx, i)
+    CInputCoin(const CBaseTransactionRef& tx, unsigned int i, int input_bytes) : CInputCoin(tx, i)
     {
         m_input_bytes = input_bytes;
     }
