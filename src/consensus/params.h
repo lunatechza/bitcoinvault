@@ -58,6 +58,8 @@ struct Params {
     int BIP65Height;
     /** Block height at which BIP66 becomes active */
     int BIP66Height;
+    /** Block height at which DDMS becomes active */
+    int DDMSHeight;
 
     int AlertsHeight;
     /**

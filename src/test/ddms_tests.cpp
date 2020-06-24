@@ -24,6 +24,19 @@ static CMutableTransaction createCoinbase() {
 	return coinbaseTx;
 }
 
+static CScript createLicensedMinerScript() {
+	std::vector<unsigned char> data;
+	data.insert(std::end(data), {0xA9, 0x14, 0xE6, 0x35, 0xF7, 0x6A, 0x0F, 0xBD, 0xB1, 0x70, 0x56, 0x58, 0xA1, 0xE3, 0xB0, 0x56, 0x73, 0x78, 0x07, 0x4A});
+
+	CScript minerScript;
+
+	minerScript << OP_HASH160;
+	minerScript << data;
+	minerScript << OP_EQUAL;
+
+	return minerScript;
+}
+
 static CScript createLicenseScript() {
 	std::vector<unsigned char> data;
 	data.insert(std::end(data), {0x4C, 0x54, 0x78}); // license header
@@ -186,8 +199,7 @@ BOOST_AUTO_TEST_CASE(shouldOnlyModifyLicenseIfAlreadyPushed)
 	auto coinbaseTx = createCoinbase();
 	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
 
-	unsigned char rawAddress[] = {169, 20, 230, 53, 247, 106, 15, 189, 177, 112, 86, 88, 161, 227, 176, 86, 115, 120, 7, 74};
-	std::string address(rawAddress, rawAddress + 20);
+	std::string address{"a914e635f76a0fbdb1705658a1e3b0567378074a"};
 
 	minerLicenses.PushLicense(1, 3, address);
 	minerLicenses.HandleTx(CTransaction(lTx), 2);
@@ -243,7 +255,7 @@ BOOST_AUTO_TEST_CASE(shouldNotModifyLicenseIfProvidedOlderEntry)
 
 BOOST_AUTO_TEST_CASE(shouldPushLicenseIfNotExists)
 {
-	minerLicenses.PushLicense(1, 5, "2N23yxpHnHpQvUNWe3Ujk5nxR6YCxeXoRiT");
+	minerLicenses.PushLicense(1, 5, "a914e635f76a0fbdb1705658a1e3b0567378074a");
 	auto licenses = minerLicenses.GetLicenses();
 
 	BOOST_CHECK_EQUAL(1, licenses.size());
@@ -252,12 +264,32 @@ BOOST_AUTO_TEST_CASE(shouldPushLicenseIfNotExists)
 
 BOOST_AUTO_TEST_CASE(shouldNotPushLicenseIfAlreadyExists)
 {
-	minerLicenses.PushLicense(1, 5, "2N23yxpHnHpQvUNWe3Ujk5nxR6YCxeXoRiT");
-	minerLicenses.PushLicense(2, 3, "2N23yxpHnHpQvUNWe3Ujk5nxR6YCxeXoRiT");
+	minerLicenses.PushLicense(1, 5, "a914e635f76a0fbdb1705658a1e3b0567378074a");
+	minerLicenses.PushLicense(2, 3, "a914e635f76a0fbdb1705658a1e3b0567378074a");
 	auto licenses = minerLicenses.GetLicenses();
 
 	BOOST_CHECK_EQUAL(1, licenses.size());
 	BOOST_CHECK_EQUAL(5, licenses[0].hashRate);
+}
+
+BOOST_AUTO_TEST_CASE(shouldAllowMineToLicensedMiner)
+{
+	auto minerScript = createLicensedMinerScript();
+	auto coinbaseTx = createCoinbase();
+	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
+	minerLicenses.HandleTx(CTransaction(lTx), 1);
+
+	BOOST_CHECK(minerLicenses.AllowedMiner(minerScript));
+}
+
+BOOST_AUTO_TEST_CASE(shouldNotAllowMineToNotLicensedMiner)
+{
+	auto minerScript = createLicensedMinerScript(); --minerScript[2]; // change first byte of miner's script
+	auto coinbaseTx = createCoinbase();
+	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
+	minerLicenses.HandleTx(CTransaction(lTx), 1);
+
+	BOOST_CHECK(!minerLicenses.AllowedMiner(minerScript));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

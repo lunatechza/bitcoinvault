@@ -2,6 +2,7 @@
 
 #include <consensus/tx_verify.h>
 #include <primitives/transaction.h>
+#include <util/strencodings.h>
 
 const CScript WDMO_SCRIPT = CScript() << OP_HASH160 << std::vector<unsigned char>{11, 182, 127, 3, 232, 176, 211, 69, 45, 165, 222, 55, 211, 47, 198, 174, 240, 165, 160, 160} << OP_EQUAL; // TODO: replace with actual wdmo script; use ParseHex
 MinerLicenses minerLicenses{};
@@ -36,11 +37,7 @@ std::vector<MinerLicenses::LicenseEntry> MinerLicenses::ExtractLicenseEntries(co
 MinerLicenses::LicenseEntry MinerLicenses::ExtractLicenseEntry(const CScript& scriptPubKey, const int height) {
 	const int size = scriptPubKey.size();
 	uint16_t hashRate = scriptPubKey[size - 2] << 8 | scriptPubKey[size - 1];
-	std::string address = "";
-
-	// TODO make it prettier
-	for( int i = 5; i < 5 + MinerScriptSize(scriptPubKey); ++i)
-		address += static_cast<char>(scriptPubKey[i]);
+	std::string address = HexStr(scriptPubKey.begin() + 5, scriptPubKey.begin() + 5 + MinerScriptSize(scriptPubKey));
 
 	return MinerLicenses::LicenseEntry{height, hashRate, address};
 }
@@ -53,12 +50,16 @@ uint32_t MinerLicenses::MinerScriptSize(const CScript& scriptPubKey) const {
 	return scriptPubKey.size() - OPCODE_SIZE - DATALENGTH_SIZE - HEADER_SIZE - HASHRATE_SIZE;
 }
 
-MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const MinerLicenses::LicenseEntry& entry) const {
-	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&entry](const MinerLicenses::LicenseEntry& license) {
-		return license.address == entry.address;
+MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const std::string& address) const {
+	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&address](const MinerLicenses::LicenseEntry& license) {
+		return license.address == address;
 	});
 
 	return it != std::end(licenses) ? const_cast<MinerLicenses::LicenseEntry*>(&*it) : nullptr;
+}
+
+MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const MinerLicenses::LicenseEntry& entry) const {
+	return FindLicense(entry.address);
 }
 
 bool MinerLicenses::NeedToUpdateLicense(const MinerLicenses::LicenseEntry& entry) const {
@@ -89,6 +90,15 @@ void MinerLicenses::ModifyLicense(const MinerLicenses::LicenseEntry& entry) {
 
 	if (entry.hashRate == 0)
 		licenses.erase(std::find(std::begin(licenses), std::end(licenses), *license));
-	else
+	else {
 		license->hashRate = entry.hashRate;
+		license->height = entry.height;
+	}
+}
+
+bool MinerLicenses::AllowedMiner(const CScript& scriptPubKey) const {
+	auto scriptStr = HexStr(scriptPubKey.begin(), scriptPubKey.end());
+	scriptStr = scriptStr.substr(4, scriptStr.size() - 6);
+
+	return FindLicense(scriptStr);
 }
