@@ -350,7 +350,7 @@ static UniValue getnewvaultinstantaddress(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
     {
         std::string msg =
                 RPCHelpMan{"getnewvaultinstantaddress",
