@@ -1,11 +1,20 @@
 #include <policy/ddms.h>
 
+#include <cmath>
+#include <numeric>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <validation.h>
 #include <consensus/tx_verify.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <util/strencodings.h>
 
 const CScript WDMO_SCRIPT = CScript() << OP_HASH160 << std::vector<unsigned char>{11, 182, 127, 3, 232, 176, 211, 69, 45, 165, 222, 55, 211, 47, 198, 174, 240, 165, 160, 160} << OP_EQUAL; // TODO: replace with actual wdmo script; use ParseHex
 MinerLicenses minerLicenses{};
+const uint16_t MINING_ROUND_SIZE{ 100 };
+const uint32_t FIRST_MINING_ROUND_HEIGHT{ 35000 }; // TODO: change to proper value
 
 void MinerLicenses::HandleTx(const CBaseTransaction& tx, const int height) {
 	for (const auto& entry : ExtractLicenseEntries(tx, height)) {
@@ -96,9 +105,125 @@ void MinerLicenses::ModifyLicense(const MinerLicenses::LicenseEntry& entry) {
 	}
 }
 
-bool MinerLicenses::AllowedMiner(const CScript& scriptPubKey) const {
+std::string CScriptToAddressString(const CScript& scriptPubKey) {
 	auto scriptStr = HexStr(scriptPubKey.begin(), scriptPubKey.end());
-	scriptStr = scriptStr.substr(4, scriptStr.size() - 6);
+	return scriptStr.substr(4, scriptStr.size() - 6);
+}
 
-	return FindLicense(scriptStr);
+bool MinerLicenses::AllowedMiner(const CScript& scriptPubKey) const {
+	return FindLicense(CScriptToAddressString(scriptPubKey));
+}
+
+float MinerLicenses::GetHashrateSum() const {
+	return std::accumulate(std::begin(licenses), std::end(licenses), 0.0f, [](float result, const MinerLicenses::LicenseEntry& license) {
+		return result + license.hashRate;
+	});
+}
+
+std::unordered_map<std::string, float> MiningMechanism::CalcMinersBlockAverageOnAllRounds() {
+	uint16_t rounds = 1;
+	std::unordered_map<std::string, float> minersBlockAverage;
+	auto blockIndex = chainActive.Tip();
+
+	while (blockIndex->nHeight >= FIRST_MINING_ROUND_HEIGHT) {
+		CBlock block;
+		ReadBlockFromDisk(block, blockIndex, Params().GetConsensus());
+
+		for (const auto& out : block.vtx[0]->vout) {
+			const auto scriptStrAddr = CScriptToAddressString(out.scriptPubKey);
+			if (minerLicenses.AllowedMiner(out.scriptPubKey))
+				continue;
+
+			if (minersBlockAverage.find(scriptStrAddr) == std::end(minersBlockAverage))
+				minersBlockAverage[scriptStrAddr] = 1;
+			else
+				++minersBlockAverage[scriptStrAddr];
+		}
+
+		blockIndex = blockIndex->pprev;
+
+		if( blockIndex->nHeight % MINING_ROUND_SIZE == MINING_ROUND_SIZE - 1)
+			++rounds;
+	}
+
+	for (auto& entry : minersBlockAverage)
+		entry.second /= rounds;
+
+	return minersBlockAverage;
+}
+
+float MiningMechanism::CalcMinerBlockAverageOnAllRounds(const CScript& scriptPubKey) {
+	const auto scriptStrAddr = CScriptToAddressString(scriptPubKey);
+	return CalcMinersBlockAverageOnAllRounds()[scriptStrAddr];
+}
+
+std::unordered_map<std::string, uint16_t> MiningMechanism::CalcMinersBlockQuota() {
+	std::unordered_map<std::string, uint16_t> minersBlockQuota;
+	auto licenses = minerLicenses.GetLicenses();
+	float hashrateSum = minerLicenses.GetHashrateSum();
+
+	for (const auto& license : licenses)
+		minersBlockQuota[license.address] = std::round(MINING_ROUND_SIZE * license.hashRate / hashrateSum);
+
+	return minersBlockQuota;
+}
+
+uint16_t MiningMechanism::CalcMinerBlockQuota(const CScript& scriptPubKey) {
+	const auto scriptStrAddr = CScriptToAddressString(scriptPubKey);
+	return CalcMinersBlockQuota()[scriptStrAddr];
+}
+
+std::unordered_map<std::string, uint16_t> MiningMechanism::CalcMinersBlockLeftInRound() {
+	std::unordered_map<std::string, uint16_t> minersBlockLeftInRound;
+	std::unordered_map<std::string, uint16_t> minersBlockQuota = CalcMinersBlockQuota();
+	auto licenses = minerLicenses.GetLicenses();
+
+	auto blockIndex = chainActive.Tip();
+	auto currentBlockIndex = FindBlockIndex(FindRoundEndBlockNumber(blockIndex->nHeight, blockIndex->nHeight));
+
+	while (currentBlockIndex->nHeight >= FindRoundStartBlockNumber(blockIndex->nHeight)) {
+		CBlock block;
+		ReadBlockFromDisk(block, blockIndex, Params().GetConsensus());
+
+		for (const auto& out : block.vtx[0]->vout) {
+			const auto scriptStrAddr = CScriptToAddressString(out.scriptPubKey);
+			if (minersBlockQuota.find(scriptStrAddr) == std::end(minersBlockQuota))
+				continue;
+
+			if (minersBlockLeftInRound.find(scriptStrAddr) == std::end(minersBlockLeftInRound))
+				minersBlockLeftInRound[scriptStrAddr] = minersBlockQuota[scriptStrAddr] - 1;
+			else
+				--minersBlockLeftInRound[scriptStrAddr];
+		}
+
+		currentBlockIndex = currentBlockIndex->pprev;
+	}
+
+	return minersBlockLeftInRound;
+}
+
+uint16_t MiningMechanism::CalcMinerBlockLeftInRound(const CScript& scriptPubKey) {
+	const auto scriptStrAddr = CScriptToAddressString(scriptPubKey);
+	return CalcMinersBlockLeftInRound()[scriptStrAddr];
+}
+
+CBlockIndex* MiningMechanism::FindBlockIndex(const uint32_t blockNumber) {
+	auto blockIndex = chainActive.Tip();
+
+	while (blockIndex->nHeight != blockNumber)
+		blockIndex = blockIndex->pprev;
+
+	return blockIndex;
+}
+
+uint32_t MiningMechanism::FindRoundStartBlockNumber(const uint32_t blockNumber) {
+	return blockNumber - (blockNumber % MINING_ROUND_SIZE);
+}
+
+uint32_t MiningMechanism::FindRoundEndBlockNumber(const uint32_t blockNumber, const uint32_t tipBlockNumber) {
+	if (blockNumber >= tipBlockNumber
+	|| FindRoundStartBlockNumber(blockNumber) == FindRoundStartBlockNumber(tipBlockNumber))
+		return tipBlockNumber;
+
+	return FindRoundStartBlockNumber(blockNumber) + MINING_ROUND_SIZE - 1;
 }
