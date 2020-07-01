@@ -6,15 +6,18 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <validation.h>
+#include <timedata.h>
 #include <consensus/tx_verify.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <util/strencodings.h>
 
-const CScript WDMO_SCRIPT = CScript() << OP_HASH160 << std::vector<unsigned char>{11, 182, 127, 3, 232, 176, 211, 69, 45, 165, 222, 55, 211, 47, 198, 174, 240, 165, 160, 160} << OP_EQUAL; // TODO: replace with actual wdmo script; use ParseHex
 MinerLicenses minerLicenses{};
+MiningMechanism miningMechanism{};
+const CScript WDMO_SCRIPT = CScript() << OP_HASH160 << std::vector<unsigned char>{11, 182, 127, 3, 232, 176, 211, 69, 45, 165, 222, 55, 211, 47, 198, 174, 240, 165, 160, 160} << OP_EQUAL; // TODO: replace with actual wdmo script; use ParseHex
 const uint16_t MINING_ROUND_SIZE{ 100 };
 const uint32_t FIRST_MINING_ROUND_HEIGHT{ 35000 }; // TODO: change to proper value
+const uint32_t MAX_CLOSED_ROUND_TIME { MAX_FUTURE_BLOCK_TIME * 5 };
 
 void MinerLicenses::HandleTx(const CBaseTransaction& tx, const int height) {
 	for (const auto& entry : ExtractLicenseEntries(tx, height)) {
@@ -226,4 +229,49 @@ uint32_t MiningMechanism::FindRoundEndBlockNumber(const uint32_t blockNumber, co
 		return tipBlockNumber;
 
 	return FindRoundStartBlockNumber(blockNumber) + MINING_ROUND_SIZE - 1;
+}
+
+bool MiningMechanism::CanMine(const CScript& scriptPubKey, const CBlock& newBlock) {
+	return !IsClosedRingRound(scriptPubKey, newBlock) || CalcMinerBlockLeftInRound(scriptPubKey) > 0;
+}
+
+bool MiningMechanism::IsClosedRingRound(const CScript& scriptPubKey, const CBlock& newBlock) {
+	if (CalcSaturatedMinersPower() >= 0.5f)
+		return false;
+
+	auto blockIndex = chainActive.Tip();
+	if (newBlock.nTime > blockIndex->nTime + GetTimeOffset() + MAX_CLOSED_ROUND_TIME
+	|| IsOpenRingRoundTimestampConditionFulfilled())
+		return false;
+
+	return true;
+}
+
+bool MiningMechanism::IsOpenRingRoundTimestampConditionFulfilled() {
+	auto blockIndex = chainActive.Tip();
+	auto prevBlockIndex = blockIndex->pprev;
+	auto startBlockNumber = FindRoundStartBlockNumber(blockIndex->nHeight);
+
+	while (prevBlockIndex->nHeight >= startBlockNumber) {
+		if (blockIndex->nTime > prevBlockIndex->nTime + GetTimeOffset() + MAX_CLOSED_ROUND_TIME)
+			return true;
+
+		blockIndex = prevBlockIndex;
+		prevBlockIndex = prevBlockIndex->pprev;
+	}
+
+	return false;
+}
+
+float MiningMechanism::CalcSaturatedMinersPower() {
+	auto minersBlockLeftInRound = CalcMinersBlockLeftInRound();
+	auto minersBlockQuota = CalcMinersBlockQuota();
+	float saturatedPower = 0.0f;
+	uint32_t hashrateSum = minerLicenses.GetHashrateSum();
+
+	for (const auto& entry : minersBlockLeftInRound)
+		if (entry.second == 0)
+			saturatedPower += (float)minerLicenses.FindLicense(entry.first)->hashRate / hashrateSum;
+
+	return saturatedPower;
 }

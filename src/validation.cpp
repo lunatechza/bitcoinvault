@@ -3822,6 +3822,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
 static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, bool fCheckDdms = true)
 {
     const int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
+	CTransactionRef cb = block.vtx[0];
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -3852,19 +3853,21 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     if (nHeight >= consensusParams.BIP34Height)
     {
         CScript expect = CScript() << nHeight;
-        if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
-            !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
+        if (cb->vin[0].scriptSig.size() < expect.size() ||
+            !std::equal(expect.begin(), expect.end(), cb->vin[0].scriptSig.begin())) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
         }
     }
 
-    // Check if the coinbase goes to the licensed addresses
+    // Check if the coinbase goes to the licensed addresses and miner can still mine in current round
     if (fCheckDdms && nHeight >= consensusParams.DDMSHeight && minerLicenses.GetLicenses().size() > 0) {
-    	CTransactionRef cb = block.vtx[0];
     	for (int i = 0; i < cb->vout.size(); ++i) {
-    		auto scriptPubKey = cb->vout[i].scriptPubKey;
-    		if (i != GetWitnessCommitmentIndex(block) && !minerLicenses.AllowedMiner(scriptPubKey))
-    	    	return state.DoS(100, false, REJECT_INVALID, "ddms-output-not-allowed", false, "");
+    		if (i != GetWitnessCommitmentIndex(block)) {
+    			if (!minerLicenses.AllowedMiner(cb->vout[i].scriptPubKey))
+    				return state.DoS(100, false, REJECT_INVALID, "ddms-output-not-allowed", false, "");
+    			else if (!miningMechanism.CanMine(cb->vout[i].scriptPubKey, block))
+    				return state.DoS(100, false, REJECT_INVALID, "ddms-miner-saturated-in-current-round", false, "");
+    		}
     	}
     }
     // TODO-fork use versionbits, check for new rules
@@ -3887,11 +3890,11 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
             // The malleation check is ignored; as the transaction tree itself
             // already does not permit it, it is impossible to trigger in the
             // witness tree.
-            if (block.vtx[0]->vin[0].scriptWitness.stack.size() != 1 || block.vtx[0]->vin[0].scriptWitness.stack[0].size() != 32) {
+            if (cb->vin[0].scriptWitness.stack.size() != 1 || cb->vin[0].scriptWitness.stack[0].size() != 32) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-witness-nonce-size", true, strprintf("%s : invalid witness reserved value size", __func__));
             }
-            CHash256().Write(hashWitness.begin(), 32).Write(&block.vtx[0]->vin[0].scriptWitness.stack[0][0], 32).Finalize(hashWitness.begin());
-            if (memcmp(hashWitness.begin(), &block.vtx[0]->vout[commitpos].scriptPubKey[6], 32)) {
+            CHash256().Write(hashWitness.begin(), 32).Write(&cb->vin[0].scriptWitness.stack[0][0], 32).Finalize(hashWitness.begin());
+            if (memcmp(hashWitness.begin(), &cb->vout[commitpos].scriptPubKey[6], 32)) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-witness-merkle-match", true, strprintf("%s : witness merkle commitment mismatch", __func__));
             }
             fHaveWitness = true;

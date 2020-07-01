@@ -44,7 +44,6 @@ class CScriptCheck;
 class CBlockPolicyEstimator;
 class CTxMemPool;
 class CValidationState;
-class MinerLicenses;
 struct ChainTxData;
 
 struct PrecomputedTransactionData;
