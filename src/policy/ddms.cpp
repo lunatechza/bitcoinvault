@@ -123,18 +123,18 @@ float MinerLicenses::GetHashrateSum() const {
 	});
 }
 
-std::unordered_map<std::string, float> MiningMechanism::CalcMinersBlockAverageOnAllRounds() {
-	uint16_t rounds = 1;
+std::unordered_map<std::string, float> MiningMechanism::CalcMinersBlockAverageOnAllRounds(uint32_t heightThreshold) {
 	std::unordered_map<std::string, float> minersBlockAverage;
 	auto blockIndex = chainActive.Tip();
+	uint16_t rounds = blockIndex->nHeight % MINING_ROUND_SIZE != MINING_ROUND_SIZE - 1;
 
-	while (blockIndex->nHeight >= FIRST_MINING_ROUND_HEIGHT) {
+	while (blockIndex->nHeight >= heightThreshold) {
 		CBlock block;
 		ReadBlockFromDisk(block, blockIndex, Params().GetConsensus());
 
 		for (const auto& out : block.vtx[0]->vout) {
 			const auto scriptStrAddr = CScriptToAddressString(out.scriptPubKey);
-			if (minerLicenses.AllowedMiner(out.scriptPubKey))
+			if (!minerLicenses.AllowedMiner(out.scriptPubKey))
 				continue;
 
 			if (minersBlockAverage.find(scriptStrAddr) == std::end(minersBlockAverage))
@@ -143,10 +143,10 @@ std::unordered_map<std::string, float> MiningMechanism::CalcMinersBlockAverageOn
 				++minersBlockAverage[scriptStrAddr];
 		}
 
-		blockIndex = blockIndex->pprev;
-
-		if( blockIndex->nHeight % MINING_ROUND_SIZE == MINING_ROUND_SIZE - 1)
+		if (blockIndex->nHeight % MINING_ROUND_SIZE == MINING_ROUND_SIZE - 1)
 			++rounds;
+
+		blockIndex = blockIndex->pprev;
 	}
 
 	for (auto& entry : minersBlockAverage)
@@ -155,13 +155,13 @@ std::unordered_map<std::string, float> MiningMechanism::CalcMinersBlockAverageOn
 	return minersBlockAverage;
 }
 
-float MiningMechanism::CalcMinerBlockAverageOnAllRounds(const CScript& scriptPubKey) {
+float MiningMechanism::CalcMinerBlockAverageOnAllRounds(const CScript& scriptPubKey, const uint32_t heightThreshold) {
 	const auto scriptStrAddr = CScriptToAddressString(scriptPubKey);
-	return CalcMinersBlockAverageOnAllRounds()[scriptStrAddr];
+	return CalcMinersBlockAverageOnAllRounds(heightThreshold)[scriptStrAddr];
 }
 
-std::unordered_map<std::string, uint16_t> MiningMechanism::CalcMinersBlockQuota() {
-	std::unordered_map<std::string, uint16_t> minersBlockQuota;
+std::unordered_map<std::string, int> MiningMechanism::CalcMinersBlockQuota() {
+	std::unordered_map<std::string, int> minersBlockQuota;
 	auto licenses = minerLicenses.GetLicenses();
 	float hashrateSum = minerLicenses.GetHashrateSum();
 
@@ -176,26 +176,21 @@ uint16_t MiningMechanism::CalcMinerBlockQuota(const CScript& scriptPubKey) {
 	return CalcMinersBlockQuota()[scriptStrAddr];
 }
 
-std::unordered_map<std::string, uint16_t> MiningMechanism::CalcMinersBlockLeftInRound() {
-	std::unordered_map<std::string, uint16_t> minersBlockLeftInRound;
-	std::unordered_map<std::string, uint16_t> minersBlockQuota = CalcMinersBlockQuota();
+std::unordered_map<std::string, int> MiningMechanism::CalcMinersBlockLeftInRound(const uint32_t heightThreshold) {
+	std::unordered_map<std::string, int> minersBlockQuota = CalcMinersBlockQuota();
+	std::unordered_map<std::string, int> minersBlockLeftInRound(minersBlockQuota);
 	auto licenses = minerLicenses.GetLicenses();
 
 	auto blockIndex = chainActive.Tip();
 	auto currentBlockIndex = FindBlockIndex(FindRoundEndBlockNumber(blockIndex->nHeight, blockIndex->nHeight));
 
-	while (currentBlockIndex->nHeight >= FindRoundStartBlockNumber(blockIndex->nHeight)) {
+	while (currentBlockIndex && currentBlockIndex->nHeight >= FindRoundStartBlockNumber(blockIndex->nHeight, heightThreshold)) {
 		CBlock block;
-		ReadBlockFromDisk(block, blockIndex, Params().GetConsensus());
+		ReadBlockFromDisk(block, currentBlockIndex, Params().GetConsensus());
 
 		for (const auto& out : block.vtx[0]->vout) {
 			const auto scriptStrAddr = CScriptToAddressString(out.scriptPubKey);
-			if (minersBlockQuota.find(scriptStrAddr) == std::end(minersBlockQuota))
-				continue;
-
-			if (minersBlockLeftInRound.find(scriptStrAddr) == std::end(minersBlockLeftInRound))
-				minersBlockLeftInRound[scriptStrAddr] = minersBlockQuota[scriptStrAddr] - 1;
-			else
+			if (minersBlockLeftInRound.find(scriptStrAddr) != std::end(minersBlockLeftInRound))
 				--minersBlockLeftInRound[scriptStrAddr];
 		}
 
@@ -205,52 +200,54 @@ std::unordered_map<std::string, uint16_t> MiningMechanism::CalcMinersBlockLeftIn
 	return minersBlockLeftInRound;
 }
 
-uint16_t MiningMechanism::CalcMinerBlockLeftInRound(const CScript& scriptPubKey) {
+uint16_t MiningMechanism::CalcMinerBlockLeftInRound(const CScript& scriptPubKey, const uint32_t heightThreshold) {
 	const auto scriptStrAddr = CScriptToAddressString(scriptPubKey);
-	return CalcMinersBlockLeftInRound()[scriptStrAddr];
+	return CalcMinersBlockLeftInRound(heightThreshold)[scriptStrAddr];
 }
 
 CBlockIndex* MiningMechanism::FindBlockIndex(const uint32_t blockNumber) {
 	auto blockIndex = chainActive.Tip();
 
-	while (blockIndex->nHeight != blockNumber)
+	while (blockIndex && blockIndex->nHeight != blockNumber)
 		blockIndex = blockIndex->pprev;
 
 	return blockIndex;
 }
 
-uint32_t MiningMechanism::FindRoundStartBlockNumber(const uint32_t blockNumber) {
-	return blockNumber - (blockNumber % MINING_ROUND_SIZE);
+uint32_t MiningMechanism::FindRoundStartBlockNumber(const uint32_t blockNumber, const int heightThreshold) {
+	auto res = blockNumber - (blockNumber % MINING_ROUND_SIZE);
+	return res < heightThreshold ? heightThreshold : res;
 }
 
-uint32_t MiningMechanism::FindRoundEndBlockNumber(const uint32_t blockNumber, const uint32_t tipBlockNumber) {
+uint32_t MiningMechanism::FindRoundEndBlockNumber(const uint32_t blockNumber, const uint32_t tipBlockNumber, const uint32_t heightThreshold) {
 	if (blockNumber >= tipBlockNumber
-	|| FindRoundStartBlockNumber(blockNumber) == FindRoundStartBlockNumber(tipBlockNumber))
+	|| FindRoundStartBlockNumber(blockNumber, heightThreshold) == FindRoundStartBlockNumber(tipBlockNumber, heightThreshold))
 		return tipBlockNumber;
 
-	return FindRoundStartBlockNumber(blockNumber) + MINING_ROUND_SIZE - 1;
+	return FindRoundStartBlockNumber(blockNumber, heightThreshold) + MINING_ROUND_SIZE - 1;
 }
 
-bool MiningMechanism::CanMine(const CScript& scriptPubKey, const CBlock& newBlock) {
-	return !IsClosedRingRound(scriptPubKey, newBlock) || CalcMinerBlockLeftInRound(scriptPubKey) > 0;
+bool MiningMechanism::CanMine(const CScript& scriptPubKey, const CBlock& newBlock, const uint32_t heightThreshold) {
+	return !IsClosedRingRound(scriptPubKey, newBlock, heightThreshold) || CalcMinerBlockLeftInRound(scriptPubKey, heightThreshold) > 0;;
 }
 
-bool MiningMechanism::IsClosedRingRound(const CScript& scriptPubKey, const CBlock& newBlock) {
-	if (CalcSaturatedMinersPower() >= 0.5f)
+bool MiningMechanism::IsClosedRingRound(const CScript& scriptPubKey, const CBlock& newBlock, const uint32_t heightThreshold) {
+	if (CalcSaturatedMinersPower(heightThreshold) >= 0.5f)
 		return false;
 
 	auto blockIndex = chainActive.Tip();
 	if (newBlock.nTime > blockIndex->nTime + GetTimeOffset() + MAX_CLOSED_ROUND_TIME
-	|| IsOpenRingRoundTimestampConditionFulfilled())
+	|| IsOpenRingRoundTimestampConditionFulfilled(heightThreshold)) {
 		return false;
+	}
 
 	return true;
 }
 
-bool MiningMechanism::IsOpenRingRoundTimestampConditionFulfilled() {
+bool MiningMechanism::IsOpenRingRoundTimestampConditionFulfilled(const uint32_t heightThreshold) {
 	auto blockIndex = chainActive.Tip();
 	auto prevBlockIndex = blockIndex->pprev;
-	auto startBlockNumber = FindRoundStartBlockNumber(blockIndex->nHeight);
+	auto startBlockNumber = FindRoundStartBlockNumber(blockIndex->nHeight, heightThreshold);
 
 	while (prevBlockIndex->nHeight >= startBlockNumber) {
 		if (blockIndex->nTime > prevBlockIndex->nTime + GetTimeOffset() + MAX_CLOSED_ROUND_TIME)
@@ -263,14 +260,18 @@ bool MiningMechanism::IsOpenRingRoundTimestampConditionFulfilled() {
 	return false;
 }
 
-float MiningMechanism::CalcSaturatedMinersPower() {
-	auto minersBlockLeftInRound = CalcMinersBlockLeftInRound();
-	auto minersBlockQuota = CalcMinersBlockQuota();
+float MinerLicenses::GetMinerHashrate(const std::string& script) {
+	auto license = FindLicense(script);
+	return license ? license->hashRate : 0;
+}
+
+float MiningMechanism::CalcSaturatedMinersPower(const uint32_t heightThreshold) {
+	auto minersBlockLeftInRound = CalcMinersBlockLeftInRound(heightThreshold);
 	float saturatedPower = 0.0f;
 	uint32_t hashrateSum = minerLicenses.GetHashrateSum();
 
 	for (const auto& entry : minersBlockLeftInRound)
-		if (entry.second == 0)
+		if (entry.second <= 0)
 			saturatedPower += (float)minerLicenses.FindLicense(entry.first)->hashRate / hashrateSum;
 
 	return saturatedPower;
