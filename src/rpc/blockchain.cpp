@@ -145,17 +145,17 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     }
     result.pushKV("tx", txs);
     UniValue atxs(UniValue::VARR);
-//    for(const auto& atx : block.vatx)
-//    {
-//        if(txDetails)
-//        {
-//            UniValue objATx(UniValue::VOBJ);
-//            TxToUniv(*atx, uint256(), objATx, true, RPCSerializationFlags());
-//            atxs.push_back(objATx);
-//        }
-//        else
-//            atxs.push_back(atx->GetHash().GetHex());
-//    }
+    for(const auto& atx : block.vatx)
+    {
+        if(txDetails)
+        {
+            UniValue objATx(UniValue::VOBJ);
+            TxToUniv(*atx, uint256(), objATx, true, RPCSerializationFlags());
+            atxs.push_back(objATx);
+        }
+        else
+            atxs.push_back(atx->GetHash().GetHex());
+    }
     result.pushKV("atx", atxs);
     result.pushKV("time", block.GetBlockTime());
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
