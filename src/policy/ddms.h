@@ -53,22 +53,22 @@ public:
 	};
 	struct LicenseEntry {
 		LicenseEntry(const LicenseEntry& license) = default;
-		LicenseEntry(const int height, const uint16_t hashRate, const std::string& address)
-			: address(address) {
+		LicenseEntry(const int height, const uint16_t hashRate, const std::string& script)
+			: script(script) {
 			hashRates.emplace_back(height, hashRate);
 		}
 
 		bool operator==(const LicenseEntry& rhs) const {
-			return hashRates == rhs.hashRates && address == rhs.address;
+			return hashRates == rhs.hashRates && script == rhs.script;
 		}
 
 		std::vector<HashrateInfo> hashRates;
-		std::string address;
+		std::string script;
 	};
 
 	void HandleTx(const CBaseTransaction& tx, const int height);
 	const std::vector<LicenseEntry>& GetLicenses() { return licenses; }
-	void PushLicense(const int height, const uint16_t hashRate, const std::string& address);
+	void PushLicense(const int height, const uint16_t hashRate, const std::string& script);
 	void RemoveLicense(LicenseEntry& entry);
 	bool AllowedMiner(const CScript& scriptPubKey) const;
 
@@ -78,7 +78,7 @@ public:
 	float GetMinerHashrate(const std::string& script, const int blockHeight, const int heightThreshold = FIRST_MINING_ROUND_HEIGHT) const;
 
 	LicenseEntry* FindLicense(const LicenseEntry& entry) const;
-	LicenseEntry* FindLicense(const std::string& address) const;
+	LicenseEntry* FindLicense(const std::string& script) const;
 
 	std::vector<LicenseEntry> ExtractLicenseEntries(const CBaseTransaction& tx, const int height);
 private:

@@ -86,9 +86,9 @@ MinerLicenses::LicenseEntry MinerLicenses::ExtractLicenseEntry(const CScript& sc
 	const int dataSize = scriptPubKey.size();
 	const int SCRIPT_OFFSET = 5;
 	const uint16_t hashRate = scriptPubKey[dataSize - 2] << 8 | scriptPubKey[dataSize - 1];
-	const std::string address = HexStr(scriptPubKey.begin() + SCRIPT_OFFSET, scriptPubKey.begin() + SCRIPT_OFFSET + MinerScriptSize(scriptPubKey));
+	const std::string script = HexStr(scriptPubKey.begin() + SCRIPT_OFFSET, scriptPubKey.begin() + SCRIPT_OFFSET + MinerScriptSize(scriptPubKey));
 
-	return MinerLicenses::LicenseEntry{height, hashRate, address};
+	return MinerLicenses::LicenseEntry{height, hashRate, script};
 }
 
 uint32_t MinerLicenses::MinerScriptSize(const CScript& scriptPubKey) const {
@@ -99,16 +99,16 @@ uint32_t MinerLicenses::MinerScriptSize(const CScript& scriptPubKey) const {
 	return scriptPubKey.size() - OPCODE_SIZE - DATALENGTH_SIZE - HEADER_SIZE - HASHRATE_SIZE;
 }
 
-MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const std::string& address) const {
-	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&address](const MinerLicenses::LicenseEntry& license) {
-		return license.address == address;
+MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const std::string& script) const {
+	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&script](const MinerLicenses::LicenseEntry& license) {
+		return license.script == script;
 	});
 
 	return it != std::end(licenses) ? const_cast<MinerLicenses::LicenseEntry*>(&*it) : nullptr;
 }
 
 MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const MinerLicenses::LicenseEntry& entry) const {
-	return FindLicense(entry.address);
+	return FindLicense(entry.script);
 }
 
 bool MinerLicenses::NeedToUpdateLicense(const MinerLicenses::LicenseEntry& entry) const {
@@ -116,13 +116,13 @@ bool MinerLicenses::NeedToUpdateLicense(const MinerLicenses::LicenseEntry& entry
 	return license != nullptr && license->hashRates.back().height < entry.hashRates.back().height;
 }
 
-void MinerLicenses::PushLicense(const int height, const uint16_t hashRate, const std::string& address) {
+void MinerLicenses::PushLicense(const int height, const uint16_t hashRate, const std::string& script) {
 	auto it = std::find_if(std::begin(licenses), std::end(licenses), [=](const MinerLicenses::LicenseEntry& obj) {
-		return obj.address == address;
+		return obj.script == script;
 	});
 
 	if (it == std::end(licenses))
-		licenses.emplace_back(height, hashRate, address);
+		licenses.emplace_back(height, hashRate, script);
 	else {
 		auto it2 = std::find_if(std::begin(it->hashRates), std::end(it->hashRates), [=](const MinerLicenses::HashrateInfo& obj) {
 			return obj.height == height && obj.hashRate == hashRate;
@@ -154,7 +154,7 @@ bool MinerLicenses::AllowedMiner(const CScript& scriptPubKey) const {
 
 float MinerLicenses::GetHashrateSum(const int blockHeight, const int heightThreshold) const {
 	return std::accumulate(std::begin(licenses), std::end(licenses), 0.0f, [=](float result, const MinerLicenses::LicenseEntry& license) {
-		return result + GetMinerHashrate(license.address, blockHeight, heightThreshold);
+		return result + GetMinerHashrate(license.script, blockHeight, heightThreshold);
 	});
 }
 
@@ -183,7 +183,7 @@ std::unordered_map<std::string, int> MiningMechanism::CalcMinersBlockQuota(const
 	const float hashrateSum = minerLicenses.GetHashrateSum(blockHeight, heightThreshold);
 
 	for (const auto& license : licenses)
-		minersBlockQuota[license.address] = std::max(1.0f, std::round(MINING_ROUND_SIZE * minerLicenses.GetMinerHashrate(license.address, blockHeight, heightThreshold) / hashrateSum));
+		minersBlockQuota[license.script] = std::max(1.0f, std::round(MINING_ROUND_SIZE * minerLicenses.GetMinerHashrate(license.script, blockHeight, heightThreshold) / hashrateSum));
 
 	return minersBlockQuota;
 }
@@ -286,7 +286,7 @@ float MiningMechanism::CalcSaturatedMinersPower(const int blockHeight, const uin
 
 void MinerLicenses::RemoveLicense(MinerLicenses::LicenseEntry& entry) {
 	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&entry](const LicenseEntry& license) {
-		return entry.address == license.address;
+		return entry.script == license.script;
 	});
 
 	if (it != std::end(licenses))
