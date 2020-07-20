@@ -5546,7 +5546,7 @@ bool DumpMinersDb() {
 				file << (uint16_t)hrInfo.hashRate;
 			};
 
-			file << license.address;
+			file << license.script;
 			file << (uint32_t)license.hashRates.size();
 			for (const auto& hrInfo : license.hashRates)
 				dumpMinerHashrate(hrInfo);
