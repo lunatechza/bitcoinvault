@@ -2519,7 +2519,6 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
     if (!warningMessages.empty())
         LogPrintf(" warning='%s'", warningMessages); /* Continued */
     LogPrintf("\n");
-
 }
 
 /** Disconnect chainActive's tip.
@@ -2575,6 +2574,8 @@ bool CChainState::DisconnectTip(CValidationState& state, const CChainParams& cha
     chainActive.SetTip(pindexDelete->pprev);
 
     UpdateTip(pindexDelete->pprev, chainparams);
+	LogPrintf("Disconnect current tip - recalculating miner limits\n");
+	miningMechanism.RecalculateBlockLimits(chainActive.Tip()->nHeight);
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     GetMainSignals().BlockDisconnected(pblock);
@@ -3860,7 +3861,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     }
 
     // Check if the coinbase goes to the licensed addresses and miner can still mine in current round
-    if (fCheckDdms && nHeight >= consensusParams.DDMSHeight && minerLicenses.GetLicenses().size() > 0) {
+    if (fCheckDdms && nHeight >= consensusParams.DDMSHeight && nHeight >= FIRST_MINING_ROUND_HEIGHT && minerLicenses.GetLicenses().size() > 0) {
     	for (int i = 0; i < cb->vout.size(); ++i) {
     		if (i != GetWitnessCommitmentIndex(block)) {
     			if (!minerLicenses.AllowedMiner(cb->vout[i].scriptPubKey))
@@ -4127,6 +4128,22 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     FlushStateToDisk(chainparams, state, FlushStateMode::NONE);
 
     CheckBlockIndex(chainparams.GetConsensus());
+
+    // erase revoked licenses and recalculate block limits in new round (execute only for new blocks)
+    if ( !dbp ) {
+        if (miningMechanism.IsBlockLastOneInRound(chainActive.Tip()->nHeight)) {
+        	LogPrintf("End of the mining round - recalculating miner limits\n");
+			miningMechanism.EraseInvalidLicenses(chainActive.Tip()->nHeight);
+			miningMechanism.RecalculateBlockLimits(chainActive.Tip()->nHeight);
+        }
+
+        for (int i = 0; i < block.vtx[0]->vout.size(); ++i) {
+			if (i != GetWitnessCommitmentIndex(block)) {
+				miningMechanism.DecrementMinerBlockLimitInRound(block.vtx[0]->vout[i].scriptPubKey);
+				break;
+			}
+		}
+    }
 
     return true;
 }
@@ -5462,16 +5479,27 @@ bool LoadMinersDb()
     }
 
     try {
+        auto loadLicense = [&file]() {
+			auto loadMinerHashrate = [&file](std::string address) {
+				int licenseHeight;
+				uint16_t hashRate;
+				file >> licenseHeight >> hashRate;
+				minerLicenses.PushLicense(licenseHeight, hashRate, address);
+			};
+
+        	uint32_t licenseSize;
+			std::string address;
+			file >> address >> licenseSize;
+
+			while (licenseSize--)
+				loadMinerHashrate(address);
+        };
+
         uint32_t height, size;
         file >> height >> size;
 
         while (size--) {
-            int licenseHeight;
-            uint16_t hashRate;
-            std::string address;
-            file >> licenseHeight >> hashRate >> address;
-
-            minerLicenses.PushLicense(licenseHeight, hashRate, address);
+        	loadLicense();
 
             if (ShutdownRequested())
                 return false;
@@ -5491,6 +5519,8 @@ bool LoadMinersDb()
         return false;
     }
 
+    miningMechanism.EraseInvalidLicenses(chainActive.Tip()->nHeight);
+    miningMechanism.RecalculateBlockLimits(chainActive.Tip()->nHeight);
     LogPrintf("Imported miner's licenses from disk.\n");
     return true;
 }
@@ -5510,14 +5540,23 @@ bool DumpMinersDb() {
 
 		CAutoFile file(filestr, SER_DISK, CLIENT_VERSION);
 
-		file << (uint32_t)g_chainstate.chainActive.Height();
+		auto dumpLicense = [&file](const MinerLicenses::LicenseEntry& license) {
+			auto dumpMinerHashrate = [&file](const MinerLicenses::HashrateInfo& hrInfo) {
+				file << (int)hrInfo.height;
+				file << (uint16_t)hrInfo.hashRate;
+			};
 
-		file << (uint32_t)minerLicenses.GetLicenses().size();
-		for (const auto& license : minerLicenses.GetLicenses()) {
-			file << (int)license.height;
-			file << (uint16_t)license.hashRate;
 			file << license.address;
-		}
+			file << (uint32_t)license.hashRates.size();
+			for (const auto& hrInfo : license.hashRates)
+				dumpMinerHashrate(hrInfo);
+		};
+
+		file << (uint32_t)g_chainstate.chainActive.Height();
+		file << (uint32_t)minerLicenses.GetLicenses().size();
+
+		for (const auto& license : minerLicenses.GetLicenses())
+			dumpLicense(license);
 
 		if (!FileCommit(file.Get()))
 			throw std::runtime_error("FileCommit failed");

@@ -16,6 +16,7 @@
 #include <hash.h>
 #include <index/txindex.h>
 #include <key_io.h>
+#include <policy/ddms.h>
 #include <policy/feerate.h>
 #include <policy/policy.h>
 #include <policy/rbf.h>
@@ -144,17 +145,17 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     }
     result.pushKV("tx", txs);
     UniValue atxs(UniValue::VARR);
-    for(const auto& atx : block.vatx)
-    {
-        if(txDetails)
-        {
-            UniValue objATx(UniValue::VOBJ);
-            TxToUniv(*atx, uint256(), objATx, true, RPCSerializationFlags());
-            atxs.push_back(objATx);
-        }
-        else
-            atxs.push_back(atx->GetHash().GetHex());
-    }
+//    for(const auto& atx : block.vatx)
+//    {
+//        if(txDetails)
+//        {
+//            UniValue objATx(UniValue::VOBJ);
+//            TxToUniv(*atx, uint256(), objATx, true, RPCSerializationFlags());
+//            atxs.push_back(objATx);
+//        }
+//        else
+//            atxs.push_back(atx->GetHash().GetHex());
+//    }
     result.pushKV("atx", atxs);
     result.pushKV("time", block.GetBlockTime());
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
@@ -2319,6 +2320,43 @@ UniValue scantxoutset(const JSONRPCRequest& request)
     return result;
 }
 
+static UniValue getlicensedminers(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            RPCHelpMan{"getlicensedminers",
+                "\nReturns the list of licensed miners.\n",
+                {},
+				RPCResult{
+				            "\"licenses\": [\n"
+				            "    {\n"
+				            "      \"hashrate_ph\": n,             (numeric) Hashrate assigned to miner\n"
+				            "      \"scriptPubKey\": \"script\"      (string) The script key of a licensed miner\n"
+				            "    },\n"
+				            "    ... \n"
+				            "]\n"
+				                },
+                RPCExamples{
+                    HelpExampleCli("getlicensedminers", "")
+            + HelpExampleRpc("getlicensedminers", "")
+                },
+            }.ToString());
+
+    UniValue result(UniValue::VARR);
+    for (const auto& license : minerLicenses.GetLicenses()) {
+    	auto hashRate = minerLicenses.GetMinerHashrate(license.address, chainActive.Tip()->nHeight);
+
+    	if (hashRate > 0) {
+			UniValue licenseObj(UniValue::VOBJ);
+			licenseObj.pushKV("hashrate", hashRate);
+			licenseObj.pushKV("scriptPubKey", license.address);
+			result.push_back(licenseObj);
+    	}
+    }
+
+    return result;
+}
+
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
@@ -2333,6 +2371,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockheader",         &getblockheader,         {"blockhash","verbose"} },
     { "blockchain",         "getchaintips",           &getchaintips,           {} },
     { "blockchain",         "getdifficulty",          &getdifficulty,          {} },
+	{ "blockchain", 		"getlicensedminers",	  &getlicensedminers,	   {} },
     { "blockchain",         "getmempoolancestors",    &getmempoolancestors,    {"txid","verbose"} },
     { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  {"txid","verbose"} },
     { "blockchain",         "getmempoolentry",        &getmempoolentry,        {"txid"} },
