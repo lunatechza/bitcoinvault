@@ -2344,12 +2344,12 @@ static UniValue getlicensedminers(const JSONRPCRequest& request)
 
     UniValue result(UniValue::VARR);
     for (const auto& license : minerLicenses.GetLicenses()) {
-    	auto hashRate = minerLicenses.GetMinerHashrate(license.address, chainActive.Tip()->nHeight);
+    	auto hashRate = minerLicenses.GetMinerHashrate(license.script, chainActive.Tip()->nHeight);
 
     	if (hashRate > 0) {
 			UniValue licenseObj(UniValue::VOBJ);
 			licenseObj.pushKV("hashrate", hashRate);
-			licenseObj.pushKV("scriptPubKey", license.address);
+			licenseObj.pushKV("scriptPubKey", license.script);
 			result.push_back(licenseObj);
     	}
     }
