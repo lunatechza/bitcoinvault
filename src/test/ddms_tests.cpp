@@ -297,9 +297,9 @@ BOOST_AUTO_TEST_CASE(shouldOnlyModifyLicenseIfAlreadyPushed)
 	auto coinbaseTx = createCoinbase();
 	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
 
-	std::string address{"6098d946df695b6c876b48c3e4c41528ed3a38de"};
+	std::string script{"6098d946df695b6c876b48c3e4c41528ed3a38de"};
 
-	minerLicenses.PushLicense(1, 3, address);
+	minerLicenses.PushLicense(1, 3, script);
 	minerLicenses.HandleTx(CTransaction(lTx), 2);
 	auto licenses = minerLicenses.GetLicenses();
 	BOOST_CHECK_EQUAL(1, licenses.size());
@@ -673,6 +673,26 @@ BOOST_AUTO_TEST_CASE(shouldEraseInvalidLicensesRemoveLicensesWith0HashrateAssign
 	miningMechanism.EraseInvalidLicenses(chainActive.Tip()->nHeight, TEST_HEIGHT_THRESHOLD);
 	miningMechanism.RecalculateBlockLimits(chainActive.Tip()->nHeight, TEST_HEIGHT_THRESHOLD);
 	BOOST_CHECK_EQUAL(4, minerLicenses.GetLicenses().size());
+}
+
+BOOST_AUTO_TEST_CASE(shouldAllowMineToLicensedMiner)
+{
+	auto minerScript = createLicensedMinerScript();
+	auto coinbaseTx = createCoinbase();
+	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
+	minerLicenses.HandleTx(CTransaction(lTx), 1);
+
+	BOOST_CHECK(minerLicenses.AllowedMiner(minerScript));
+}
+
+BOOST_AUTO_TEST_CASE(shouldNotAllowMineToNotLicensedMiner)
+{
+	auto minerScript = createLicensedMinerScript(); --minerScript[2]; // change first byte of miner's script
+	auto coinbaseTx = createCoinbase();
+	auto lTx = createLicenseTransaction(coinbaseTx.GetHash());
+	minerLicenses.HandleTx(CTransaction(lTx), 1);
+
+	BOOST_CHECK(!minerLicenses.AllowedMiner(minerScript));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

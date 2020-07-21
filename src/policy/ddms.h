@@ -68,6 +68,7 @@ public:
 
 	void HandleTx(const CBaseTransaction& tx, const int height);
 	const std::vector<LicenseEntry>& GetLicenses() { return licenses; }
+
 	void PushLicense(const int height, const uint16_t hashRate, const std::string& script);
 	void RemoveLicense(LicenseEntry& entry);
 	bool AllowedMiner(const CScript& scriptPubKey) const;
@@ -80,10 +81,11 @@ public:
 	LicenseEntry* FindLicense(const LicenseEntry& entry) const;
 	LicenseEntry* FindLicense(const std::string& script) const;
 
-	std::vector<LicenseEntry> ExtractLicenseEntries(const CBaseTransaction& tx, const int height);
 private:
 	void AddLicense(const LicenseEntry& license);
 	void ModifyLicense(const LicenseEntry& license);
+
+	std::vector<LicenseEntry> ExtractLicenseEntries(const CBaseTransaction& tx, const int height);
 	LicenseEntry ExtractLicenseEntry(const CScript& scriptPubKey, const int height);
 	bool NeedToUpdateLicense(const LicenseEntry& entry) const;
 	uint32_t MinerScriptSize(const CScript& scriptPubKey) const;

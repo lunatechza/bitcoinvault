@@ -2330,7 +2330,7 @@ static UniValue getlicensedminers(const JSONRPCRequest& request)
 				RPCResult{
 				            "\"licenses\": [\n"
 				            "    {\n"
-				            "      \"hashrate_ph\": n,             (numeric) Hashrate assigned to miner\n"
+				            "      \"hashrate_ph\": n,             (numeric) Hashrate assigned to miner (PH/s)\n"
 				            "      \"scriptPubKey\": \"script\"      (string) The script key of a licensed miner\n"
 				            "    },\n"
 				            "    ... \n"
@@ -2347,10 +2347,10 @@ static UniValue getlicensedminers(const JSONRPCRequest& request)
     	auto hashRate = minerLicenses.GetMinerHashrate(license.script, chainActive.Tip()->nHeight);
 
     	if (hashRate > 0) {
-			UniValue licenseObj(UniValue::VOBJ);
-			licenseObj.pushKV("hashrate", hashRate);
-			licenseObj.pushKV("scriptPubKey", license.script);
-			result.push_back(licenseObj);
+          UniValue licenseObj(UniValue::VOBJ);
+          licenseObj.pushKV("hashrate", hashRate);
+          licenseObj.pushKV("scriptPubKey", license.script);
+          result.push_back(licenseObj);
     	}
     }
 
@@ -2371,7 +2371,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockheader",         &getblockheader,         {"blockhash","verbose"} },
     { "blockchain",         "getchaintips",           &getchaintips,           {} },
     { "blockchain",         "getdifficulty",          &getdifficulty,          {} },
-	{ "blockchain", 		"getlicensedminers",	  &getlicensedminers,	   {} },
+	  { "blockchain",         "getlicensedminers",      &getlicensedminers,      {} },
     { "blockchain",         "getmempoolancestors",    &getmempoolancestors,    {"txid","verbose"} },
     { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  {"txid","verbose"} },
     { "blockchain",         "getmempoolentry",        &getmempoolentry,        {"txid"} },

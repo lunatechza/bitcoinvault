@@ -99,6 +99,7 @@ uint32_t MinerLicenses::MinerScriptSize(const CScript& scriptPubKey) const {
 	return scriptPubKey.size() - OPCODE_SIZE - DATALENGTH_SIZE - HEADER_SIZE - HASHRATE_SIZE;
 }
 
+
 MinerLicenses::LicenseEntry* MinerLicenses::FindLicense(const std::string& script) const {
 	auto it = std::find_if(std::begin(licenses), std::end(licenses), [&script](const MinerLicenses::LicenseEntry& license) {
 		return license.script == script;
