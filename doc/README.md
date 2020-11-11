@@ -5,7 +5,7 @@ Setup
 ---------------------
 Bitcoin Vault is the original Bitcoin Vault client and it builds the backbone of the network. It downloads and, by default, stores the entire history of Bitcoin transactions, which requires a few hundred gigabytes of disk space. Depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
 
-To download Bitcoin Vault, visit [bitcoinvault.org](https://bitcoinvault.org/).
+To download Bitcoin Vault, visit [bitcoinvault.global](https://bitcoinvault.global/).
 
 Running
 ---------------------

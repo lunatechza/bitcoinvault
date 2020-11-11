@@ -240,6 +240,24 @@ class TestNode():
         self.log.debug("TestNode.generate() dispatches `generate` call to `generatetoaddress`")
         return self.generatetoaddress(nblocks=nblocks, address=self.get_deterministic_priv_key().address, maxtries=maxtries)
 
+    def getblockbyheight(self, height):
+        self.log.debug("TestNode.getblockbyheight() dispatches `getblockbyheight` call to `getblockhash`, `getblock`")
+        hash = self.getblockhash(height)
+        return self.getblock(hash)
+
+    def getbestblock(self):
+        self.log.debug("TestNode.get_best_block() dispatches `get_best_block` call to `getbestblockhash`, `getblock`")
+        hash = self.getbestblockhash()
+        return self.getblock(hash)
+
+    def listreceivedbyaddress(self, minconf=1, include_empty=True, include_watchonly=True):
+        return self.__getattr__('listreceivedbyaddress')(minconf, include_empty, include_watchonly)
+
+    def get_script_pubkey(self, txid, vout_n):
+        txhex = self.gettransaction(txid)['hex']
+        tx = self.decoderawtransaction(txhex)
+        return tx['vout'][vout_n]['scriptPubKey']
+
     def get_wallet_rpc(self, wallet_name):
         if self.use_cli:
             return self.cli("-rpcwallet={}".format(wallet_name))

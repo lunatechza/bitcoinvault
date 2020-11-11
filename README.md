@@ -8,7 +8,7 @@ What is Bitcoin Vault?
 
 Bitcoin Vault is a proposal for a digital currency based on Bitcoin which is focused on creating the best possible store of value and addressing the problem of theft.
 
-For more information, read the [original whitepaper](https://bitcoinvault.org/bitcoinvault.pdf). For discussions about the whitepaper and the protocol, see [this repository](https://github.com/bitcoinvault/whitepaper).
+For more information, read the [original whitepaper](https://bitcoinvault.global/bitcoinvault.pdf). For discussions about the whitepaper and the protocol, see [this repository](https://github.com/bitcoinvault/whitepaper).
 
 | | |
 |-----------|-----------------------|

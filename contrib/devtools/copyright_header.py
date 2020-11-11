@@ -91,6 +91,8 @@ EXPECTED_HOLDER_NAMES = [
     "Satoshi Nakamoto\n",
     "The Bitcoin Core developers\n",
     "Bitcoin Core Developers\n",
+    "The Bitcoin Royale developers\n",
+    "Bitcoin Royale Developers\n",
     "The Bitcoin Vault developers\n",
     "Bitcoin Vault Developers\n",
     "BitPay Inc\.\n",

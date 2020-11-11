@@ -352,7 +352,7 @@
 #define PACKAGE_TARNAME "bitcoin"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://bitcoinvault.org/"
+#define PACKAGE_URL "https://bitcoinvault.global/"
 
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "0.17.99"

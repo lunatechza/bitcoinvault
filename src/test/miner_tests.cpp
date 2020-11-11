@@ -237,6 +237,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     pparams->BIP34Height = 227931;
     pparams->BIP65Height = 388381;
     pparams->BIP66Height = 363725;
+    // TODO: need to fix after changing version to satisfy merge-mining
     pparams->vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
     pparams->vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1479168000;
     pparams->vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1510704000;
@@ -282,7 +283,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
                 baseheight = chainActive.Height();
             if (txFirst.size() < 4)
                 txFirst.push_back(pblock->vtx[0]);
-            pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
+            pblock->hashMerkleRoot = BlockMerkleRoot(pblock->vtx);
             
             // do not rely on the preset nonces in blockinfo, do actual mining (with easier difficulty)
             // pblock->nNonce = blockinfo[i].nonce;

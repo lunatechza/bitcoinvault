@@ -293,9 +293,9 @@ bitcoin.org (see below for bitcoin.org update instructions).
 
 - Update other repositories and websites for new version
 
-  - bitcoinvault.org blog post
+  - bitcoinvault.global blog post
 
-  - bitcoinvault.org RPC documentation update
+  - bitcoinvault.global global documentation update
 
   - Update packaging repo
 

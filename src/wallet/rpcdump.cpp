@@ -943,6 +943,14 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
         }
         return "";
     }
+    case TX_VAULT_ALERTADDRESS:
+    case TX_VAULT_INSTANTADDRESS: {
+        for (size_t i = 0; i < solverdata.size(); i++) {
+            CPubKey pubkey(solverdata[i].begin(), solverdata[i].end());
+            import_data.used_keys.emplace(pubkey.GetID(), false);
+        }
+        return "";
+    }
     case TX_WITNESS_V0_SCRIPTHASH: {
         if (script_ctx == ScriptContext::WITNESS_V0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Trying to nest P2WSH inside another P2WSH");
         uint256 fullid(solverdata[0]);

@@ -135,3 +135,11 @@ db4/
 
 # clang-check
 *.plist
+
+compile_commands\.json
+
+venv/
+
+.ctags
+compiler-file*.d
+.idea

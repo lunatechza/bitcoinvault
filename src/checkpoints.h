@@ -23,7 +23,6 @@ namespace Checkpoints
 bool CheckBlock(const CCheckpointData &data, int nHeight, const uint256 &hash);
 CBlockIndex* GetLastCheckpoint(const CCheckpointData& data);
 
-
 } //namespace Checkpoints
 
 #endif // BITCOIN_CHECKPOINTS_H
