@@ -3827,6 +3827,10 @@ vaulttxntype GetVaultTxTypeNonContextual(const CBaseTransaction& tx) {
             incompleteData.scriptSig = txin.scriptSig;
             incompleteData.scriptWitness = txin.scriptWitness;
             Stacks stack(incompleteData);
+            if (stack.script.empty() || stack.script.back().empty()) {
+                // probably tx is not signed
+                return TX_NONVAULT;
+            }
             script = CScript(stack.script.back().begin(), stack.script.back().end());
             scriptSig = std::vector<std::vector<unsigned char>>(&stack.script[0],
                         &stack.script[stack.script.size() - 1]);
